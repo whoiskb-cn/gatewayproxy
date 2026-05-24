@@ -1,0 +1,54 @@
+{
+    "drives": [
+        {
+            "name": "115网盘_示例",
+            "cookie": "",
+            "show_cookie": false,
+            "cache_time": 600,
+            "enable_sync": false,
+            "enable_rapid": false,
+            "auto_delete": true,
+            "delete_cron": "30 3 * * *",
+            "recycle_code": "",
+            "upload_dir": "/gatewayproxy",
+            "rapid_mode": "auto",
+            "rapid_accounts": []
+        }
+    ],
+    "embys": [
+        {
+            "name": "Emby网关_示例",
+            "url": "http://your-emby-host:8096",
+            "key": "",
+            "proxy_port": "8116",
+            "modes": {
+                "share": false,
+                "path_replace": true,
+                "pickcode": false
+            },
+            "preload": {
+                "enabled": false,
+                "count": 0,
+                "user": "all"
+            },
+            "rapid_play": false,
+            "path_map": "/your/cloud/path => /",
+            "enabled": false,
+            "drive_index": -1
+        }
+    ],
+    "navidromes": [],
+    "tingreaders": [],
+    "feinius": [],
+    "admin_username": "admin",
+    "admin_password": "admin123",
+    "wecom_music": {
+        "enabled": false,
+        "corp_id": "",
+        "secret": "",
+        "agent_id": "",
+        "token": "",
+        "encoding_aes_key": "",
+        "proxy": ""
+    }
+}

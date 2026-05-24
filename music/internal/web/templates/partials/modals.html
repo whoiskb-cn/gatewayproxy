@@ -1,0 +1,127 @@
+{{define "modals"}}
+<div id="cookieModal" class="modal-overlay" style="z-index: 1001;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>设置 Cookies</h3>
+            <div class="modal-close" onclick="document.getElementById('cookieModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <div class="cookie-list">
+                {{ range $source := .AllSources }}
+                <div class="cookie-item">
+                    <label>{{ $source }}</label>
+                    <input type="text" id="cookie-{{$source}}" placeholder="在此粘贴 Cookie...">
+                </div>
+                {{ end }}
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-embed-download">
+                    <input type="checkbox" id="setting-embed-download">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">下载时内嵌元数据（封面、歌词）</span>
+                </label>
+                <p class="setting-hint">为保证下载速度，默认关闭内嵌；关闭时使用流式下载。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-download-to-local">
+                    <input type="checkbox" id="setting-download-to-local">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">下载时直接保存到本地目录</span>
+                </label>
+                <p class="setting-hint">开启后，点击“下载”将由程序直接写入指定目录，而不是由浏览器弹窗下载。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-download-dir">本地下载目录</label>
+                <input type="text" id="setting-download-dir" placeholder="例如: data/downloads 或 D:/Music/Downloads">
+                <p class="setting-hint" style="margin-left: 0;">支持手填相对目录和绝对目录。相对目录示例：<code>data/downloads</code>；绝对目录示例：<code>D:/Music/Downloads</code>。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-web-page-size">Web 每页条数</label>
+                <input type="number" id="setting-web-page-size" min="1" max="200" step="1" placeholder="默认 50">
+                <p class="setting-hint" style="margin-left: 0;">用于网页分页显示，默认 50。</p>
+            </div>
+            <div class="cookie-item">
+                <label for="setting-cli-page-size">CLI 每页条数</label>
+                <input type="number" id="setting-cli-page-size" min="1" max="200" step="1" placeholder="默认 50">
+                <p class="setting-hint" style="margin-left: 0;">用于 TUI 分页显示，默认 50。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-vg-change-cover">
+                    <input type="checkbox" id="setting-vg-change-cover">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">显示“更换封面/背景”按钮</span>
+                </label>
+                <p class="setting-hint">控制视频生成弹窗中的本地封面/背景替换入口，默认隐藏。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-vg-change-audio">
+                    <input type="checkbox" id="setting-vg-change-audio">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">显示“更换音频”按钮</span>
+                </label>
+                <p class="setting-hint">控制视频生成弹窗中的本地音频替换入口，默认隐藏。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-vg-change-lyric">
+                    <input type="checkbox" id="setting-vg-change-lyric">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">显示“更换歌词”按钮</span>
+                </label>
+                <p class="setting-hint">控制视频生成弹窗中的本地歌词替换入口，默认隐藏。</p>
+            </div>
+            <div class="cookie-item setting-item">
+                <label class="setting-toggle" for="setting-vg-export-video">
+                    <input type="checkbox" id="setting-vg-export-video">
+                    <span class="setting-switch" aria-hidden="true"></span>
+                    <span class="setting-toggle-text">显示“导出视频”按钮</span>
+                </label>
+                <p class="setting-hint">控制视频生成弹窗中的导出视频入口，默认隐藏。</p>
+            </div>
+            <button class="btn-save" onclick="saveCookies()">保存设置</button>
+        </div>
+    </div>
+</div>
+
+<div id="editCollectionModal" class="modal-overlay" style="z-index: 1005;">
+    <div class="modal" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3 id="editColTitle">新建歌单</h3>
+            <div class="modal-close" onclick="document.getElementById('editCollectionModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editColId">
+            <div class="cookie-item">
+                <label>歌单名称 <span style="color:#e53e3e;">*</span></label>
+                <input type="text" id="editColName" placeholder="例如: 睡前听的歌" maxlength="30">
+            </div>
+            <div class="cookie-item">
+                <label>描述</label>
+                <input type="text" id="editColDesc" placeholder="简单描述一下...">
+            </div>
+            <div class="cookie-item">
+                <label>封面图片 (URL)</label>
+                <input type="text" id="editColCover" placeholder="留空则自动生成随机封面">
+            </div>
+            <button type="button" class="btn-save" onclick="saveCollection()">保存歌单</button>
+        </div>
+    </div>
+</div>
+
+<div id="addToCollectionModal" class="modal-overlay" style="z-index: 1004;">
+    <div class="modal" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>收藏到我的歌单</h3>
+            <div class="modal-close" onclick="document.getElementById('addToCollectionModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 14px; color: var(--text-sub);">选择或管理歌单</span>
+                <button class="btn-pill btn-pill-primary" style="padding: 6px 12px; font-size: 12px;" onclick="showEditCollectionModal()">
+                    <i class="fa-solid fa-plus"></i> 新建
+                </button>
+            </div>
+            <div id="addColList"></div>
+        </div>
+    </div>
+</div>
+{{end}}

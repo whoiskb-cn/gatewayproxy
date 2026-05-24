@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+.env
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 测试与覆盖率
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# 日志
+*.log
+logs/
+config/app.log
+
+# 运行时生成的用户配置（请按需复制示例配置后再使用）
+# 注意：config_302.json 在仓库中作为示例保留，部署后会被运行时改写
+# 如不想跟踪修改，请取消下一行注释
+# config/config_302.json
+config/auth.json
+config/device_id.txt
+config/tasks.json
+config/rss_tasks.json
+config/rss_settings.json
+config/webhook.json
+config/license.json
+config/settings.json
+
+# 构建产物
+music/music-dl
+music/music-dl.exe
+music/data/downloads/
+music/data/video_output/
+music/data/*.db
+
+# Go
+*.test
+*.out
+vendor/
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+.gemini/
+.agent/
+.agents/
+.claude/
+*.swp
+*.swo
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 备份与临时
+backups/
+tmp/
+scratch/
+*.bak
+*.tmp

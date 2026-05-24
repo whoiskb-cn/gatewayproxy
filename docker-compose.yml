@@ -1,0 +1,23 @@
+services:
+  gatewayproxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gatewayproxy
+    restart: unless-stopped
+    ports:
+      - "8115:8115"
+      - "8116:8116"
+      - "8533:8533"
+      - "9527:9527"
+      - "8117:8080"
+    volumes:
+      - ./config:/app/config
+      - ./static:/app/static
+      - ./app:/app/app
+      - ./main.py:/app/main.py
+      # 音乐下载数据挂载到内部 of music/data
+      - ./music/data:/app/music/data
+    environment:
+      - TZ=Asia/Shanghai
+      - MUSIC_DL_URL=http://127.0.0.1:8080/music

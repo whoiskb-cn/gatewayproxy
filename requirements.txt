@@ -1,0 +1,12 @@
+fastapi==0.128.2
+uvicorn[standard]==0.40.0
+pydantic==2.12.5
+python-multipart
+httpx==0.28.1
+urllib3==2.6.3
+websockets==16.0
+p115client
+p115rsacipher==0.0.1
+wechatpy
+cachetools==7.0.0
+apscheduler==3.11.2

@@ -1,0 +1,53 @@
+# Python 编译缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 虚拟环境
+env/
+venv/
+.venv
+.env
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 测试与覆盖率
+.tox
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# 日志文件（运行时生成，不入镜）
+*.log
+config/app.log
+
+# 用户配置文件（运行时挂载 volume，不入镜）
+config/config_302.json
+config/*.json
+config/auth.json
+
+# 备份与临时目录
+backups/
+tmp/
+scratch/
+
+# 版本控制与 IDE
+.git/
+.github/
+.vscode/
+.idea/
+.gemini/
+.agent/
+.agents/
+
+# 构建产物（Go 编译后的文件已通过多阶段构建处理）
+music/music-dl
+
+# 测试脚本
+test_*.py

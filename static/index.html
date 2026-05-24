@@ -1,0 +1,2899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gateway Proxy</title>
+    <link rel="icon" href="/static/115.png" type="image/png" />
+
+    <!-- 引入 TailwindCSS 和 Vue -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <!-- 引入现代化字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        theme_bg: '#050505',
+                        theme_card: 'rgba(15, 15, 20, 0.65)',
+                        theme_border: 'rgba(255, 255, 255, 0.06)',
+                        theme_accent: '#6366f1', // Indigo
+                        theme_accent_hover: '#818cf8',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #050505;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: #e2e8f0;
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* 隐藏 Vue 初始化时的闪烁 */
+        [v-cloak] {
+            display: none;
+        }
+
+        /* 玻璃拟物感卡片 */
+        .glass-card {
+            background: var(--theme-card, rgba(20, 20, 25, 0.6));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border-radius: 1.25rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6), 0 0 40px -10px rgba(99, 102, 241, 0.1);
+        }
+
+        /* 输入框美化 */
+        .input-elegant {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0.75rem;
+            color: #f8fafc;
+            width: 100%;
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .input-elegant:focus {
+            outline: none;
+            border-color: #818cf8;
+            background: rgba(0, 0, 0, 0.5);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .input-elegant::placeholder {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 华丽的按钮 */
+        .btn-glow {
+            position: relative;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 0.6rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-glow::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn-glow:hover::before {
+            left: 100%;
+        }
+
+        .btn-glow:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1.25rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        /* 侧边栏滑入动画 */
+        .sidebar-enter-active,
+        .sidebar-leave-active {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar-enter-from,
+        .sidebar-leave-to {
+            transform: translateX(-100%);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 高级 Switch 开关 */
+        .switch-container {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .switch-bg {
+            width: 44px;
+            height: 24px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            position: relative;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .switch-container input:checked+.switch-bg {
+            background-color: #6366f1;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .switch-knob {
+            width: 20px;
+            height: 20px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .switch-container input:checked+.switch-bg .switch-knob {
+            transform: translateX(20px);
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* 小号列表动效 */
+        .list-enter-active,
+        .list-leave-active {
+            transition: all 0.3s ease;
+        }
+
+        .list-enter-from,
+        .list-leave-to {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+    </style>
+</head>
+
+<body class="h-screen w-full overflow-hidden m-0">
+
+    <div id="app" class="h-full flex flex-col w-full text-slate-200 relative" v-cloak>
+
+        <!-- 弹窗提示 -->
+        <transition name="list">
+            <div v-if="toast.show"
+                :class="['fixed top-8 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-2xl text-sm font-medium shadow-2xl z-50 flex items-center gap-3 backdrop-blur-md border border-white/10', toast.type === 'error' ? 'bg-red-500/80 text-white' : 'bg-emerald-500/80 text-white']">
+                <svg v-if="toast.type === 'success'" class="w-5 h-5" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                {{ toast.msg }}
+            </div>
+        </transition>
+
+        <!-- 登录界面 -->
+        <transition name="list">
+            <div v-if="!isAuthenticated" class="h-full w-full flex flex-col items-center justify-center p-4">
+                <div class="glass-card p-10 max-w-sm w-full text-center">
+                    <div class="w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                        <img src="/static/115.png"
+                            class="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(82,181,75,0.5)]" alt="115">
+                    </div>
+                    <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">安全验证</h2>
+                    <p class="text-slate-400 text-xs mb-8">请输入访问密码</p>
+                    <form @submit.prevent="login" class="space-y-4">
+                        <input type="text" v-model="userName"
+                            class="input-elegant text-center tracking-[0.2em] text-lg font-mono focus:bg-black/60 !py-3"
+                            placeholder="用户名" autofocus required>
+                        <input type="password" v-model="passCode"
+                            class="input-elegant text-center tracking-[0.5em] text-lg font-mono focus:bg-black/60 !py-3 mb-2"
+                            placeholder="••••••••" required>
+                        <button type="submit"
+                            class="btn-glow w-full justify-center !py-3 !text-sm tracking-widest mt-4">
+                            解 锁 控 制 面 板
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 仪表盘主体 -->
+        <transition name="list">
+            <div v-show="isAuthenticated" class="flex h-full w-full overflow-hidden bg-[#0d0d12]">
+
+                <!-- 移动端侧边栏遮罩层 -->
+                <transition name="list">
+                    <div v-if="isMobileMenuOpen" @click="isMobileMenuOpen = false"
+                        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"></div>
+                </transition>
+
+                <!-- 新版左侧边栏 (极客黑暗风格) -->
+                <aside
+                    :class="['fixed inset-y-0 left-0 z-40 w-64 bg-[#14151a] border-r border-white/5 flex flex-col h-full flex-shrink-0 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static', isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full']">
+                    <div class="h-20 flex items-center px-6 border-b border-white/5 gap-3 shrink-0">
+                        <img src="/static/115.png"
+                            class="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(82,181,75,0.4)]" alt="Logo">
+                        <span class="text-white font-bold text-lg tracking-wide">Gateway Proxy</span>
+                    </div>
+
+                    <nav class="flex-1 overflow-y-auto px-4 py-8 space-y-8">
+                        <div>
+                            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest px-3 mb-3">
+                                反代服务配置</div>
+                            <div class="space-y-1.5">
+                                <button @click="setActiveTab('drives')"
+                                    :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors', activeTab === 'drives' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5']">
+                                    <img src="/static/115.png"
+                                        class="w-6 h-6 object-contain opacity-80 group-hover:opacity-100" alt="115">
+                                    115网盘实例
+                                </button>
+                                <button @click="setActiveTab('embys')"
+                                    :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors', activeTab === 'embys' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5']">
+                                    <img src="/static/emby.png"
+                                        class="w-6 h-6 object-contain opacity-80 group-hover:opacity-100" alt="Emby">
+                                    EmbyServer
+                                </button>
+                                <button @click="setActiveTab('feinius')"
+                                    :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors', activeTab === 'feinius' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5']">
+                                    <img src="/static/feiniu.png"
+                                        class="w-6 h-6 object-contain opacity-80 group-hover:opacity-100" alt="Feiniu">
+                                    飞牛影视
+                                </button>
+                                <button @click="setActiveTab('navidromes')"
+                                    :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors', activeTab === 'navidromes' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5']">
+                                    <img src="/static/navidrome.png"
+                                        class="w-6 h-6 object-contain opacity-80 group-hover:opacity-100"
+                                        alt="Navidrome">
+                                    Navidrome
+                                </button>
+                                <button @click="setActiveTab('tingreaders')"
+                                    :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors', activeTab === 'tingreaders' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5']">
+                                    <img src="/static/tingreader.png"
+                                        class="w-6 h-6 object-contain opacity-80 group-hover:opacity-100"
+                                        alt="TingReader">
+                                    TingReader
+                                </button>
+                                <button @click="setActiveTab('115cookie')"
+                                    :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors', activeTab === '115cookie' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5']">
+                                    <img src="/static/115cookie.png"
+                                        class="w-6 h-6 object-contain opacity-80 group-hover:opacity-100"
+                                        alt="115 Cookie">
+                                    115Cookie获取
+                                </button>
+                                <button @click="setActiveTab('music')"
+                                    :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors', activeTab === 'music' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5']">
+                                    <img src="/static/music.png"
+                                        class="w-6 h-6 object-contain opacity-80 group-hover:opacity-100" alt="Music">
+                                    音乐下载
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest px-3 mb-3">
+                                高级设置</div>
+                            <div class="space-y-1.5">
+                                <button @click="setActiveTab('account')"
+                                    :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors', activeTab === 'account' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5']">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                                        </path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0">
+                                        </path>
+                                    </svg>
+                                    系统设置
+                                </button>
+                                <button @click="setActiveTab('logs'); loadLogs()"
+                                    :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors', activeTab === 'logs' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5']">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                        </path>
+                                    </svg>
+                                    运行日志
+                                    <span v-if="logStreaming"
+                                        class="ml-auto w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+
+                    <div class="p-4 border-t border-white/5 mt-auto">
+                        <button @click="logout"
+                            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
+                                </path>
+                            </svg>
+                            安全锁定
+                        </button>
+                        <div class="mt-4 text-center">
+                            <span
+                                class="text-[10px] text-slate-600 font-medium tracking-widest uppercase opacity-50">Version
+                                4.0.2</span>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- 右侧主内容区域 -->
+                <main class="flex-1 flex flex-col h-full bg-[#0d0d12] overflow-hidden relative">
+                    <!-- 面包屑及保存导航 -->
+                    <header
+                        class="h-20 shrink-0 border-b border-white/5 px-4 md:px-8 flex items-center justify-between sticky top-0 z-10 backdrop-blur-md bg-[#0d0d12]/80 shadow-md">
+
+                        <div class="flex items-center gap-4">
+                            <!-- 移动端汉堡菜单按钮 -->
+                            <button @click="isMobileMenuOpen = !isMobileMenuOpen"
+                                class="lg:hidden p-2 text-slate-400 hover:text-white transition-colors">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path v-if="!isMobileMenuOpen" stroke-linecap="round" stroke-linejoin="round"
+                                        stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+                                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+
+                            <div
+                                class="flex items-center text-slate-300 text-sm md:text-[15px] font-medium gap-2 md:gap-3">
+                                <template v-if="activeTab === 'drives'">
+                                    <img src="/static/115.png" class="w-4 h-4 object-contain" alt="115">
+                                    <span>115网盘</span>
+                                </template>
+
+                                <template v-else-if="activeTab === 'embys'">
+                                    <img src="/static/emby.png" class="w-4 h-4 object-contain" alt="Emby">
+                                    <span>EmbyServer</span>
+                                </template>
+
+                                <template v-else-if="activeTab === 'feinius'">
+                                    <img src="/static/feiniu.png" class="w-4 h-4 object-contain" alt="Feiniu">
+                                    <span>飞牛影视</span>
+                                </template>
+
+                                <template v-else-if="activeTab === 'navidromes'">
+                                    <img src="/static/navidrome.png" class="w-4 h-4 object-contain" alt="Navidrome">
+                                    <span>Navidrome</span>
+                                </template>
+
+                                <template v-else-if="activeTab === 'tingreaders'">
+                                    <img src="/static/tingreader.png" class="w-4 h-4 object-contain"
+                                        alt="TingReader">
+                                    <span>TingReader</span>
+                                </template>
+
+
+                                <template v-else-if="activeTab === '115cookie'">
+                                    <img src="/static/115cookie.png" class="w-4 h-4 object-contain" alt="115 Cookie">
+                                    <span class="hidden sm:inline">115Cookie获取</span>
+                                </template>
+
+                                <template v-else-if="activeTab === 'account'">
+                                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                                        </path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0">
+                                        </path>
+                                    </svg>
+                                    <span>系统设置</span>
+                                </template>
+
+                                <template v-else-if="activeTab === 'logs'">
+                                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                        </path>
+                                    </svg>
+                                    <span>运行日志</span>
+                                    <span v-if="logStreaming"
+                                        class="ml-1 w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block"></span>
+                                </template>
+
+                                <template v-else-if="activeTab === 'music'">
+                                    <img src="/static/music.png" class="w-4 h-4 object-contain" alt="Music">
+                                    <span>音乐下载</span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 md:gap-4">
+                            <button @click="restartContainer"
+                                class="text-xs md:text-sm bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-medium flex items-center gap-1.5 md:gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-xl shadow-lg shadow-orange-500/20 transition-all transform hover:-translate-y-0.5 border border-orange-500/30">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                    </path>
+                                </svg>
+                                <span class="hidden sm:inline">重启容器</span>
+                                <span class="sm:hidden">重启</span>
+                            </button>
+                            <button @click="saveConfig"
+                                class="text-xs md:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium flex items-center gap-1.5 md:gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-xl shadow-lg shadow-blue-500/20 transition-all transform hover:-translate-y-0.5 border border-blue-500/30">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                                    </path>
+                                </svg>
+                                <span class="hidden sm:inline">保存配置</span>
+                                <span class="sm:hidden">保存</span>
+                            </button>
+                        </div>
+                    </header>
+
+                    <!-- 滚动内容区 -->
+                    <div class="flex-1 overflow-y-auto w-full p-4 md:p-12">
+                        <div class="max-w-4xl mx-auto pb-20">
+
+                            <!-- 动态标签面板容器 -->
+                            <transition name="list" mode="out-in">
+                                <!-- 1 账号配置 -->
+                                <div v-if="activeTab === 'drives'" key="drives-panel" class="space-y-6 w-full">
+                                    <div class="flex justify-between items-center px-2">
+                                        <h2 class="text-xl font-semibold text-slate-100 flex items-center gap-3">
+                                            <div class="w-6 h-6 flex items-center justify-center mr-1">
+                                                <img src="/static/115.png"
+                                                    class="w-full h-full object-contain drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]"
+                                                    alt="115网盘">
+                                            </div>
+                                            115网盘
+                                        </h2>
+                                        <button @click="addDrive"
+                                            class="text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 4v16m8-8H4">
+                                                </path>
+                                            </svg>
+                                            添加主账号
+                                        </button>
+                                    </div>
+
+                                    <transition-group name="list" tag="div" class="space-y-6">
+                                        <div v-for="(drive, index) in config.drives" :key="'drive-'+index"
+                                            class="glass-card p-6 md:p-8">
+
+                                            <div
+                                                class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+                                                <input v-model="drive.name"
+                                                    class="bg-transparent text-xl font-semibold text-white focus:outline-none w-1/2 placeholder-slate-500"
+                                                    placeholder="账号别名 (如: VIP主号)">
+                                                <button @click="removeDrive(index)"
+                                                    class="text-red-400/70 hover:text-red-400 text-sm flex items-center gap-1 transition-colors">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                        </path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            <div class="space-y-5">
+                                                <div>
+                                                    <label
+                                                        class="block text-xs uppercase tracking-wider text-slate-400 mb-2">主号
+                                                        Cookie</label>
+                                                    <input type="password" v-model="drive.cookie"
+                                                        class="input-elegant font-mono text-xs leading-relaxed"
+                                                        placeholder="填入 115 抓包获取的 Cookie">
+                                                </div>
+
+                                                <div class="flex flex-wrap gap-3">
+                                                    <button @click="testCookie(drive.cookie)"
+                                                        class="btn-secondary text-xs">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                                        </svg>
+                                                        测试连通性
+                                                    </button>
+                                                    <button @click="manualCleanup(index)"
+                                                        class="btn-secondary text-xs !text-orange-300 hover:!bg-orange-500/10 hover:!border-orange-500/30">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                            </path>
+                                                        </svg>
+                                                        清理缓冲垃圾
+                                                    </button>
+                                                </div>
+
+                                                <div
+                                                    class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 bg-black/20 p-4 rounded-xl border border-white/5">
+                                                    <div class="flex items-center justify-between">
+                                                        <div class="flex flex-col">
+                                                            <span class="text-sm font-medium text-slate-200">复制同播</span>
+                                                            <span class="text-[10px] text-slate-500">复制资源请求直连</span>
+                                                        </div>
+                                                        <label class="switch-container">
+                                                            <input type="checkbox" v-model="drive.enable_sync"
+                                                                class="hidden" />
+                                                            <div class="switch-bg">
+                                                                <div class="switch-knob"></div>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                    <div class="flex items-center justify-between">
+                                                        <div class="flex flex-col">
+                                                            <span
+                                                                class="text-sm font-medium text-slate-200">自动回收站清理</span>
+                                                            <span class="text-[10px] text-slate-500">释放云盘空间</span>
+                                                        </div>
+                                                        <label class="switch-container">
+                                                            <input type="checkbox" v-model="drive.auto_delete"
+                                                                class="hidden" />
+                                                            <div class="switch-bg">
+                                                                <div class="switch-knob"></div>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                    <div
+                                                        class="flex items-center justify-between md:col-span-2 pt-2 border-t border-white/5">
+                                                        <div class="flex flex-col">
+                                                            <span
+                                                                class="text-sm font-medium text-indigo-300">秒传小号播放</span>
+                                                            <span class="text-[10px] text-slate-400">配置小号池后生效</span>
+                                                        </div>
+                                                        <label class="switch-container">
+                                                            <input type="checkbox" v-model="drive.enable_rapid"
+                                                                class="hidden" />
+                                                            <div class="switch-bg">
+                                                                <div class="switch-knob"></div>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 辅助设定区块 (目录和清理策略) -->
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 p-4 bg-black/20 rounded-xl border border-white/5"
+                                                    v-show="drive.enable_sync || drive.enable_rapid || drive.auto_delete">
+                                                    <div class="md:col-span-2">
+                                                        <label
+                                                            class="block text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">复制/秒传工作目录</label>
+                                                        <input v-model="drive.upload_dir"
+                                                            class="input-elegant text-xs !py-1.5 !bg-black/30 font-mono"
+                                                            placeholder="如: /EmbyGateway" />
+                                                    </div>
+                                                    <div v-show="drive.auto_delete">
+                                                        <label
+                                                            class="block text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">定时清理表达式</label>
+                                                        <input v-model="drive.delete_cron"
+                                                            class="input-elegant text-xs !py-1.5 !bg-black/30 font-mono"
+                                                            placeholder="如: 30 3 * * *" />
+                                                    </div>
+                                                    <div v-show="drive.auto_delete">
+                                                        <label
+                                                            class="block text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">回收站安全码</label>
+                                                        <input type="password" v-model="drive.recycle_code"
+                                                            class="input-elegant text-xs !py-1.5 !bg-black/30 font-mono"
+                                                            placeholder="无密码可不填" />
+                                                    </div>
+                                                </div>
+
+                                                <!-- 小号列表区块 -->
+                                                <div v-show="drive.enable_rapid"
+                                                    class="p-5 rounded-xl bg-gradient-to-br from-indigo-900/10 to-indigo-900/5 border border-indigo-500/20">
+                                                    <div class="flex justify-between items-center mb-4">
+                                                        <span
+                                                            class="text-xs font-semibold text-indigo-300 uppercase tracking-widest flex items-center gap-2">
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                                viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                                                                </path>
+                                                            </svg>
+                                                            秒传小号矩阵
+                                                        </span>
+                                                        <button @click="addRapidAccount(drive)"
+                                                            class="text-xs text-indigo-400 hover:text-indigo-300 font-medium pb-0.5 border-b border-indigo-500/30">
+                                                            + 增加节点
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="mb-4">
+                                                        <select v-model="drive.rapid_mode"
+                                                            class="input-elegant text-xs text-slate-300 !py-2 !bg-black/40">
+                                                            <option value="auto">🤖 智能路由 (故障自动降级切换)</option>
+                                                            <option v-for="(rapid, rIndex) in drive.rapid_accounts"
+                                                                :key="'opt-rapid-'+rIndex" :value="rIndex.toString()">
+                                                                📌 锁定节点: {{ rapid.name || ('小号节点 ' + (rIndex + 1)) }}
+                                                            </option>
+                                                        </select>
+                                                    </div>
+
+                                                    <transition-group name="list" tag="div" class="space-y-3">
+                                                        <div v-for="(rapid, rIndex) in drive.rapid_accounts"
+                                                            :key="'rapid-'+rIndex"
+                                                            class="flex flex-col gap-2 relative group">
+                                                            <div class="flex items-center gap-2">
+                                                                <input v-model="rapid.name"
+                                                                    class="input-elegant text-xs !py-1.5 w-1/3 !bg-black/30 placeholder-slate-600"
+                                                                    placeholder="节点名 (如 User2)">
+                                                                <button @click="drive.rapid_accounts.splice(rIndex, 1)"
+                                                                    class="text-red-400/50 hover:text-red-400 text-xs px-2 transition-colors ml-auto tooltip">
+                                                                    移除
+                                                                </button>
+                                                            </div>
+                                                            <input type="password" v-model="rapid.cookie"
+                                                                class="input-elegant text-xs font-mono !py-1.5 !bg-black/30 placeholder-slate-600"
+                                                                placeholder="节点 Cookie">
+                                                        </div>
+                                                    </transition-group>
+
+                                                    <div v-if="!drive.rapid_accounts || drive.rapid_accounts.length === 0"
+                                                        class="text-center text-xs text-slate-500/70 py-4 italic">
+                                                        未添加小号 - 秒传矩阵尚未建立组网
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </transition-group>
+
+                                    <div v-if="config.drives.length === 0"
+                                        class="glass-card p-12 text-center border-dashed border-2 border-white/10 flex flex-col items-center justify-center">
+                                        <svg class="w-12 h-12 text-slate-600 mb-3" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                            </path>
+                                        </svg>
+                                        <p class="text-slate-400 mb-4 text-sm tracking-wide">存储矩阵尚未建立</p>
+                                        <button @click="addDrive" class="btn-secondary">立即挂载</button>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="activeTab === 'music'" key="music-panel" class="space-y-6 w-full">
+                                    <!-- 音乐下载 -->
+                                    <div class="glass-card p-6 md:p-8">
+                                        <h2 class="text-xl font-semibold text-slate-100 flex items-center gap-3 mb-6">
+                                            <img src="/static/music.png" class="w-6 h-6 object-contain" alt="Music">
+                                            全网音乐搜索与下载
+                                        </h2>
+
+                                        <!-- 搜索框区域 -->
+                                        <div class="flex gap-4 mb-4">
+                                            <input v-model="musicSearchQuery" @keyup.enter="searchMusic"
+                                                class="input-elegant flex-1 !py-3" placeholder="输入歌曲名、歌手名或分享链接...">
+
+                                            <!-- 搜索类型切换 -->
+                                            <div
+                                                class="flex items-center bg-black/40 p-1 rounded-xl border border-white/10 shrink-0">
+                                                <label
+                                                    class="cursor-pointer relative px-4 py-2 rounded-lg text-sm font-semibold transition-all select-none"
+                                                    :class="searchType === 'song' ? 'bg-indigo-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'">
+                                                    <input type="radio" v-model="searchType" value="song"
+                                                        class="hidden">
+                                                    单曲
+                                                </label>
+                                                <label
+                                                    class="cursor-pointer relative px-4 py-2 rounded-lg text-sm font-semibold transition-all select-none"
+                                                    :class="searchType === 'album' ? 'bg-indigo-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'">
+                                                    <input type="radio" v-model="searchType" value="album"
+                                                        class="hidden">
+                                                    专辑
+                                                </label>
+                                            </div>
+
+                                            <button @click="searchMusic" :disabled="isMusicSearching"
+                                                class="btn-glow !py-3 px-8 shrink-0">
+                                                <svg v-if="isMusicSearching" class="animate-spin h-5 w-5 text-white"
+                                                    fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                        stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                    </path>
+                                                </svg>
+                                                <span v-else>立即搜索</span>
+                                            </button>
+                                        </div>
+
+                                        <!-- 音乐源选择 -->
+                                        <div class="flex flex-wrap gap-2 mb-8">
+                                            <span
+                                                class="text-xs text-slate-500 self-center mr-2 uppercase tracking-widest font-bold">音乐源:</span>
+                                            <button v-for="source in musicSourceOptions" :key="source.id"
+                                                @click="toggleMusicSource(source.id)"
+                                                :class="['px-3 py-1.5 rounded-full text-[11px] transition-all border font-medium', 
+                                                    selectedMusicSources.includes(source.id) 
+                                                    ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.2)]' 
+                                                    : 'bg-white/5 border-white/5 text-slate-500 hover:text-slate-300']">
+                                                {{ source.name }}
+                                            </button>
+                                        </div>
+
+                                        <!-- 搜索结果展示区 -->
+                                        <!-- 返回专辑列表按钮 -->
+                                        <transition name="fade">
+                                            <div v-if="isViewingAlbum" class="mb-2">
+                                                <button @click="cancelAlbumView"
+                                                    class="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/10 text-indigo-400 text-sm font-bold transition-all border border-indigo-500/20 hover:bg-indigo-500 hover:text-white">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                                                    </svg>
+                                                    返回专辑列表
+                                                </button>
+                                            </div>
+                                        </transition>
+
+                                        <!-- 搜索结果展示区 (单曲) -->
+                                        <div v-if="(searchType === 'song' || isViewingAlbum) && filteredMusicResults.length > 0"
+                                            class="flex flex-col gap-5">
+                                            <!-- 统计、全选与批量操作 -->
+                                            <div
+                                                class="flex items-center justify-between px-3 py-2 bg-black/20 rounded-xl border border-white/5 mb-2">
+                                                <div class="flex items-center gap-3">
+                                                    <input type="checkbox" :checked="isAllSelected"
+                                                        @change="toggleSelectAll"
+                                                        class="w-4 h-4 rounded border-white/20 bg-white/5 text-indigo-500 focus:ring-0 cursor-pointer">
+                                                    <span class="text-xs text-slate-400 font-semibold tracking-wide">
+                                                        共找到 <span class="text-indigo-400 font-bold mx-0.5">{{
+                                                            filteredMusicResults.length }}</span> 首符合条件的音乐
+                                                    </span>
+                                                </div>
+
+                                                <!-- 顶部的批量操作按钮 -->
+                                                <transition name="fade">
+                                                    <div v-if="selectedMusicIds.length > 0"
+                                                        class="flex items-center gap-3">
+                                                        <span
+                                                            class="text-[10px] text-indigo-400 font-bold bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20">已选
+                                                            {{ selectedMusicIds.length }} 首</span>
+                                                        <button @click="batchDownload" :disabled="isBatchDownloading"
+                                                            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all disabled:opacity-50 shadow-md shadow-indigo-500/20 active:scale-95">
+                                                            <svg v-if="isBatchDownloading"
+                                                                class="animate-spin h-3.5 w-3.5" fill="none"
+                                                                viewBox="0 0 24 24">
+                                                                <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                                    stroke="currentColor" stroke-width="4"></circle>
+                                                                <path class="opacity-75" fill="currentColor"
+                                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                                </path>
+                                                            </svg>
+                                                            <svg v-else class="w-3.5 h-3.5" fill="none"
+                                                                stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4">
+                                                                </path>
+                                                            </svg>
+                                                            {{ isBatchDownloading ? '处理中...' : '批量下载' }}
+                                                        </button>
+                                                        <button @click="selectedMusicIds = []"
+                                                            class="text-xs text-slate-500 hover:text-slate-300 ml-1">取消</button>
+                                                    </div>
+                                                </transition>
+                                            </div>
+
+                                            <!-- 歌曲列表 -->
+                                            <div class="flex flex-col gap-3">
+                                                <div v-for="song in filteredMusicResults" :key="song.id || song.ID"
+                                                    class="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group relative overflow-hidden"
+                                                    :class="{'border-indigo-500/40 bg-indigo-500/10 shadow-lg': selectedMusicIds.includes(song.id || song.ID), 'opacity-40 grayscale': song.isValid === false}">
+
+                                                    <!-- 复选框 -->
+                                                    <div class="shrink-0 z-10">
+                                                        <input type="checkbox" v-model="selectedMusicIds"
+                                                            :value="song.id || song.ID"
+                                                            class="w-4 h-4 rounded border-white/20 bg-white/10 text-indigo-500 focus:ring-0 cursor-pointer">
+                                                    </div>
+
+                                                    <!-- 封面图 -->
+                                                    <div
+                                                        class="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-black/40 shadow-xl group-hover:scale-105 transition-transform duration-300">
+                                                        <img :src="song.cover || song.Cover || '/static/navidrome.png'"
+                                                            class="w-full h-full object-cover">
+                                                    </div>
+
+                                                    <!-- 核心信息 -->
+                                                    <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+                                                        <h4
+                                                            class="text-base font-bold text-white truncate group-hover:text-indigo-300 transition-colors">
+                                                            {{ song.name || song.Name }}
+                                                        </h4>
+                                                        <p
+                                                            class="text-xs text-slate-400 truncate flex items-center gap-1.5">
+                                                            <span class="text-slate-300">{{ song.artist || song.Artist
+                                                                }}</span>
+                                                            <span class="opacity-20">|</span>
+                                                            <span class="text-slate-500">{{ song.album || song.Album
+                                                                }}</span>
+                                                        </p>
+                                                        <div class="flex items-center gap-2 mt-0.5">
+                                                            <span
+                                                                class="text-[10px] font-black uppercase tracking-tighter text-indigo-400 bg-indigo-400/10 px-1.5 py-0.5 rounded border border-indigo-400/20">
+                                                                {{ (song.source || song.Source || 'Music').toUpperCase()
+                                                                }}
+                                                            </span>
+                                                            <span v-if="song.duration || song.Duration"
+                                                                class="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-full font-mono">
+                                                                {{ formatDuration(song.duration || song.Duration) }}
+                                                            </span>
+                                                            <span v-if="song.size || song.Size"
+                                                                class="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full font-mono font-bold border border-emerald-400/10">
+                                                                {{ formatSize(song.size || song.Size) }}
+                                                            </span>
+                                                            <span v-if="song.bitrate"
+                                                                class="text-[10px] text-amber-400/90 bg-amber-400/10 px-2 py-0.5 rounded-full font-mono font-black border border-amber-400/10">
+                                                                {{ song.bitrate }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- 下载操作 -->
+                                                    <div class="shrink-0 ml-2">
+                                                        <button @click="downloadMusic(song)"
+                                                            class="p-3 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all transform active:scale-95 shadow-md border border-indigo-500/20">
+                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                                viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4">
+                                                                </path>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+
+                                        </div>
+                                        <!-- 专辑列表展示区 -->
+                                        <div v-else-if="!isViewingAlbum && searchType === 'album' && filteredAlbumResults.length > 0"
+                                            class="flex flex-col gap-3 mt-2">
+                                            <div
+                                                class="flex items-center justify-between px-3 py-2 bg-black/20 rounded-xl border border-white/5 mb-2">
+                                                <span class="text-xs text-slate-400 font-semibold tracking-wide">
+                                                    共找到 <span class="text-indigo-400 font-bold mx-0.5">{{
+                                                        filteredAlbumResults.length }}</span> 张专辑
+                                                </span>
+                                            </div>
+                                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                                <div v-for="album in filteredAlbumResults" :key="album.id || album.ID"
+                                                    @click="fetchAlbumSongs(album)"
+                                                    class="cursor-pointer group flex flex-col gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-indigo-500/30 transition-all shadow-lg hover:shadow-indigo-500/10">
+                                                    <div
+                                                        class="aspect-square rounded-xl overflow-hidden bg-black/40 shadow-md relative border border-white/5 group-hover:border-indigo-500/30">
+                                                        <img :src="album.cover || album.Cover || '/static/navidrome.png'"
+                                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                                                        <div
+                                                            class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                                            <svg class="w-10 h-10 text-white drop-shadow-md" fill="none"
+                                                                stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+                                                                </path>
+                                                            </svg>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex flex-col min-w-0">
+                                                        <h4
+                                                            class="text-sm font-bold text-white truncate group-hover:text-indigo-300 transition-colors">
+                                                            {{ album.name || album.Name }}</h4>
+                                                        <p class="text-xs text-slate-400 truncate mt-1">{{ album.artist
+                                                            || album.Artist }}</p>
+                                                        <div class="mt-3 flex items-center gap-2">
+                                                            <span
+                                                                class="text-[9px] font-black uppercase text-indigo-400 bg-indigo-400/10 px-1.5 py-0.5 rounded border border-indigo-400/20">
+                                                                {{ (album.source || album.Source ||
+                                                                'Music').toUpperCase() }}
+                                                            </span>
+                                                            <span v-if="album.songCount || album.SongCount"
+                                                                class="text-[10px] text-slate-500 font-mono tracking-tighter">{{
+                                                                album.songCount || album.SongCount }} 首</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div v-else-if="!isMusicSearching" class="py-32 text-center">
+                                            <div class="relative inline-block mb-6">
+                                                <div class="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full">
+                                                </div>
+                                                <svg class="w-20 h-20 text-slate-700 relative z-10" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="1.5"
+                                                        d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3">
+                                                    </path>
+                                                </svg>
+                                            </div>
+                                            <h3 class="text-lg font-bold text-slate-400 mb-2">等待开启探索</h3>
+                                            <p class="text-slate-600 text-sm max-w-xs mx-auto">输入关键词，即刻从全网获取高品质音频资源</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="activeTab === 'embys'" key="embys-panel" class="space-y-6 w-full">
+                                    <!-- Emby 挂载配置 -->
+                                    <div class="flex justify-between items-center px-2">
+                                        <h2 class="text-xl font-semibold text-slate-100 flex items-center gap-3">
+                                            <div class="w-6 h-6 flex items-center justify-center mr-1">
+                                                <img src="/static/emby.png"
+                                                    class="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(82,181,75,0.4)]"
+                                                    alt="Emby">
+                                            </div>
+                                            Emby服务器
+                                        </h2>
+                                        <button @click="addEmby"
+                                            class="text-sm text-emerald-400 hover:text-emerald-300 font-medium transition-colors flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 4v16m8-8H4">
+                                                </path>
+                                            </svg>
+                                            添加Emby服务器
+                                        </button>
+                                    </div>
+
+                                    <transition-group name="list" tag="div" class="space-y-6">
+                                        <div v-for="(emby, index) in config.embys" :key="'emby-'+index"
+                                            class="glass-card p-6 md:p-8"
+                                            :class="{'opacity-60 grayscale-[30%]': !emby.enabled}">
+
+                                            <div
+                                                class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+                                                <div class="flex items-center gap-3">
+                                                    <label class="switch-container">
+                                                        <input type="checkbox" v-model="emby.enabled" class="hidden" />
+                                                        <div class="switch-bg !bg-emerald-900/40"
+                                                            :class="{'!bg-emerald-500': emby.enabled}">
+                                                            <div class="switch-knob"></div>
+                                                        </div>
+                                                    </label>
+                                                    <input v-model="emby.name"
+                                                        class="bg-transparent text-xl font-semibold text-white focus:outline-none w-64 md:w-80 placeholder-slate-500"
+                                                        placeholder="应用名">
+                                                </div>
+                                                <button @click="removeEmby(index)"
+                                                    class="text-red-400/70 hover:text-red-400 text-sm flex items-center gap-1 transition-colors">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                        </path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            <div class="space-y-5" :class="{'pointer-events-none': !emby.enabled}">
+
+                                                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                                    <div class="md:col-span-3">
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Emby访问地址</label>
+                                                        <div class="relative">
+                                                            <div
+                                                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                                <svg class="w-4 h-4 text-slate-500" fill="none"
+                                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2"
+                                                                        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9">
+                                                                    </path>
+                                                                </svg>
+                                                            </div>
+                                                            <input v-model="emby.url" class="input-elegant pl-9"
+                                                                placeholder="http://192.168.1.100:8096">
+                                                        </div>
+                                                    </div>
+                                                    <div class="md:col-span-2">
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">反代端口</label>
+                                                        <div class="flex">
+                                                            <span
+                                                                class="bg-black/40 text-emerald-400/80 px-3 py-[0.6rem] rounded-l-xl border border-r-0 border-white/5 text-sm font-mono">:</span>
+                                                            <input v-model="emby.proxy_port"
+                                                                class="input-elegant rounded-l-none pl-2 border-l-0 font-mono text-center"
+                                                                placeholder="8116">
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Emby服务API
+                                                            (Token)</label>
+                                                        <input v-model="emby.key" type="password"
+                                                            class="input-elegant font-mono text-sm"
+                                                            placeholder="Emby API Key">
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">使用网盘</label>
+                                                        <select v-model="emby.drive_index"
+                                                            class="input-elegant text-sm">
+                                                            <option :value="-1">自动智能匹配</option>
+                                                            <option v-for="(drv, dIndex) in config.drives"
+                                                                :key="'opt-'+dIndex" :value="dIndex">
+                                                                {{ drv.name || '未命名集群' }}
+                                                            </option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 引擎中间件 -->
+                                                <div class="p-5 rounded-xl bg-black/20 border border-white/5 mt-2">
+                                                    <div
+                                                        class="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                        <svg class="w-4 h-4 text-cyan-400" fill="none"
+                                                            stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                                                            </path>
+                                                        </svg>
+                                                        工作模式
+                                                    </div>
+                                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <label
+                                                            class="flex flex-col gap-3 p-3 rounded-lg border border-transparent hover:bg-white/5 transition-all cursor-pointer group"
+                                                            :class="{'bg-white/5 border-emerald-500/30': emby.modes.path_replace}">
+                                                            <div class="flex items-center justify-between">
+                                                                <span
+                                                                    class="text-xs font-medium text-slate-200 group-hover:text-white transition-colors">路径替换模式</span>
+                                                                <input type="radio" :name="'emby-mode-' + index"
+                                                                    :checked="emby.modes.path_replace"
+                                                                    @change="setWorkMode(emby, 'path_replace')"
+                                                                    class="w-3.5 h-3.5 rounded-full bg-black/50 border-white/20 text-emerald-500 focus:ring-0 focus:ring-offset-0" />
+                                                            </div>
+                                                        </label>
+                                                        <label
+                                                            class="flex flex-col gap-3 p-3 rounded-lg border border-transparent hover:bg-white/5 transition-all cursor-pointer group"
+                                                            :class="{'bg-white/5 border-emerald-500/30': emby.modes.share}">
+                                                            <div class="flex items-center justify-between">
+                                                                <span
+                                                                    class="text-xs font-medium text-slate-200 group-hover:text-white transition-colors">分享模式</span>
+                                                                <input type="radio" :name="'emby-mode-' + index"
+                                                                    :checked="emby.modes.share"
+                                                                    @change="setWorkMode(emby, 'share')"
+                                                                    class="w-3.5 h-3.5 rounded-full bg-black/50 border-white/20 text-emerald-500 focus:ring-0 focus:ring-offset-0" />
+                                                            </div>
+                                                        </label>
+                                                        <label
+                                                            class="flex flex-col gap-3 p-3 rounded-lg border border-transparent hover:bg-white/5 transition-all cursor-pointer group"
+                                                            :class="{'bg-white/5 border-emerald-500/30': emby.modes.pickcode}">
+                                                            <div class="flex items-center justify-between">
+                                                                <span
+                                                                    class="text-xs font-medium text-slate-200 group-hover:text-white transition-colors">Pickcode
+                                                                    模式</span>
+                                                                <input type="radio" :name="'emby-mode-' + index"
+                                                                    :checked="emby.modes.pickcode"
+                                                                    @change="setWorkMode(emby, 'pickcode')"
+                                                                    class="w-3.5 h-3.5 rounded-full bg-black/50 border-white/20 text-emerald-500 focus:ring-0 focus:ring-offset-0" />
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 预加载 -->
+                                                <div
+                                                    class="p-5 rounded-xl bg-gradient-to-br from-emerald-900/10 to-transparent border border-emerald-500/10 mt-2">
+                                                    <div class="flex justify-between items-center mb-4">
+                                                        <span
+                                                            class="text-xs font-semibold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                                viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
+                                                                </path>
+                                                            </svg>
+                                                            后台预加载
+                                                        </span>
+                                                        <label class="switch-container">
+                                                            <input type="checkbox" v-model="emby.preload.enabled"
+                                                                class="hidden" />
+                                                            <div class="switch-bg !bg-emerald-900/40"
+                                                                :class="{'!bg-emerald-500': emby.preload.enabled}">
+                                                                <div class="switch-knob"></div>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                    <div v-show="emby.preload.enabled"
+                                                        class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label
+                                                                class="block text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">触发作用域</label>
+                                                            <select v-model="emby.preload.user"
+                                                                class="input-elegant text-xs !py-1.5 !bg-black/30">
+                                                                <option value="all">所有终端用户</option>
+                                                                <option value="admin">仅对管理员生效</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label
+                                                                class="block text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">列队深度
+                                                                (实验性)</label>
+                                                            <input type="number" v-model.number="emby.preload.count"
+                                                                class="input-elegant text-xs !py-1.5 !bg-black/30 font-mono"
+                                                                placeholder="0 = 默认单集">
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 路径替换文本区 -->
+                                                <div class="mt-2" v-show="emby.modes.path_replace">
+                                                    <label
+                                                        class="block text-xs uppercase tracking-wider text-slate-400 mb-2">路径替换</label>
+                                                    <textarea v-model="emby.path_map" rows="2"
+                                                        class="input-elegant font-mono tracking-wider text-xs leading-relaxed"
+                                                        placeholder="/CloudNAS/CloudDrive/115open => /"></textarea>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </transition-group>
+
+                                    <div v-if="config.embys.length === 0"
+                                        class="glass-card p-12 text-center border-dashed border-2 border-white/10 flex flex-col items-center justify-center">
+                                        <svg class="w-12 h-12 text-slate-600 mb-3" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                            </path>
+                                        </svg>
+                                        <p class="text-slate-400 mb-4 text-sm tracking-wide">协议网关均待激活</p>
+                                        <button @click="addEmby" class="btn-secondary">开始部署</button>
+                                    </div>
+
+                                </div>
+
+                                <div v-else-if="activeTab === 'feinius'" key="feinius-panel" class="space-y-6 w-full">
+                                    <!-- 飞牛影视服务器 -->
+                                    <div class="flex justify-between items-center px-2">
+                                        <h2 class="text-xl font-semibold text-slate-100 flex items-center gap-3">
+                                            <div class="w-6 h-6 flex items-center justify-center mr-1">
+                                                <img src="/static/feiniu.png"
+                                                    class="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(59,130,246,0.4)]"
+                                                    alt="Feiniu">
+                                            </div>
+                                            飞牛影视服务器
+                                        </h2>
+                                        <button @click="addFeiniu"
+                                            class="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 4v16m8-8H4"></path>
+                                            </svg>
+                                            添加飞牛影视
+                                        </button>
+                                    </div>
+
+                                    <transition-group name="list" tag="div" class="space-y-6">
+                                        <div v-for="(fn, index) in config.feinius" :key="'fn-'+index"
+                                            class="glass-card p-6 md:p-8"
+                                            :class="{'opacity-60 grayscale-[30%]': !fn.enabled}">
+
+                                            <div
+                                                class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+                                                <div class="flex items-center gap-3">
+                                                    <label class="switch-container">
+                                                        <input type="checkbox" v-model="fn.enabled" class="hidden" />
+                                                        <div class="switch-bg !bg-blue-900/40"
+                                                            :class="{'!bg-blue-500': fn.enabled}">
+                                                            <div class="switch-knob"></div>
+                                                        </div>
+                                                    </label>
+                                                    <input v-model="fn.name"
+                                                        class="bg-transparent text-xl font-semibold text-white focus:outline-none w-64 md:w-80 placeholder-slate-500"
+                                                        placeholder="应用名">
+                                                </div>
+                                                <button @click="removeFeiniu(index)"
+                                                    class="text-red-400/70 hover:text-red-400 text-sm flex items-center gap-1 transition-colors">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                        </path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            <div class="space-y-5" :class="{'pointer-events-none': !fn.enabled}">
+                                                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                                    <div class="md:col-span-3">
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">飞牛影视访问地址</label>
+                                                        <div class="relative">
+                                                            <div
+                                                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                                <svg class="w-4 h-4 text-slate-500" fill="none"
+                                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2"
+                                                                        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9">
+                                                                    </path>
+                                                                </svg>
+                                                            </div>
+                                                            <input v-model="fn.url" class="input-elegant pl-9"
+                                                                placeholder="http://192.168.1.100:8097">
+                                                        </div>
+                                                    </div>
+                                                    <div class="md:col-span-2">
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">反代端口</label>
+                                                        <div class="flex">
+                                                            <span
+                                                                class="bg-black/40 text-blue-400/80 px-3 py-[0.6rem] rounded-l-xl border border-r-0 border-white/5 text-sm font-mono">:</span>
+                                                            <input v-model="fn.proxy_port"
+                                                                class="input-elegant rounded-l-none pl-2 border-l-0 font-mono text-center"
+                                                                placeholder="8097">
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div>
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">用户名</label>
+                                                        <input v-model="fn.username"
+                                                            class="input-elegant text-sm font-mono tracking-wider"
+                                                            placeholder="飞牛影视 用户名">
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">密码</label>
+                                                        <input v-model="fn.password" type="password"
+                                                            class="input-elegant text-sm font-mono tracking-wider"
+                                                            placeholder="飞牛影视 密码">
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">使用网盘</label>
+                                                        <select v-model="fn.drive_index" class="input-elegant text-sm">
+                                                            <option v-for="(drv, dIndex) in config.drives"
+                                                                :key="'opt-'+dIndex" :value="dIndex">
+                                                                {{ drv.name || '未命名集群' }}
+                                                            </option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 引擎中间件 -->
+                                                <div class="p-5 rounded-xl bg-black/20 border border-white/5 mt-2">
+                                                    <div
+                                                        class="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                        <svg class="w-4 h-4 text-blue-400" fill="none"
+                                                            stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                                                            </path>
+                                                        </svg>
+                                                        工作模式
+                                                    </div>
+                                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <label
+                                                            class="flex flex-col gap-3 p-3 rounded-lg border border-transparent hover:bg-white/5 transition-all cursor-pointer group"
+                                                            :class="{'bg-white/5 border-blue-500/30': fn.modes.path_replace}">
+                                                            <div class="flex items-center justify-between">
+                                                                <span
+                                                                    class="text-xs font-medium text-slate-200 group-hover:text-white transition-colors">路径替换模式</span>
+                                                                <input type="radio" :name="'fn-mode-' + index"
+                                                                    :checked="fn.modes.path_replace"
+                                                                    @change="setWorkMode(fn, 'path_replace')"
+                                                                    class="w-3.5 h-3.5 rounded-full bg-black/50 border-white/20 text-blue-500 focus:ring-0 focus:ring-offset-0" />
+                                                            </div>
+                                                        </label>
+                                                        <label
+                                                            class="flex flex-col gap-3 p-3 rounded-lg border border-transparent hover:bg-white/5 transition-all cursor-pointer group"
+                                                            :class="{'bg-white/5 border-blue-500/30': fn.modes.share}">
+                                                            <div class="flex items-center justify-between">
+                                                                <span
+                                                                    class="text-xs font-medium text-slate-200 group-hover:text-white transition-colors">分享模式</span>
+                                                                <input type="radio" :name="'fn-mode-' + index"
+                                                                    :checked="fn.modes.share"
+                                                                    @change="setWorkMode(fn, 'share')"
+                                                                    class="w-3.5 h-3.5 rounded-full bg-black/50 border-white/20 text-blue-500 focus:ring-0 focus:ring-offset-0" />
+                                                            </div>
+                                                        </label>
+                                                        <label
+                                                            class="flex flex-col gap-3 p-3 rounded-lg border border-transparent hover:bg-white/5 transition-all cursor-pointer group"
+                                                            :class="{'bg-white/5 border-blue-500/30': fn.modes.pickcode}">
+                                                            <div class="flex items-center justify-between">
+                                                                <span
+                                                                    class="text-xs font-medium text-slate-200 group-hover:text-white transition-colors">Pickcode
+                                                                    模式</span>
+                                                                <input type="radio" :name="'fn-mode-' + index"
+                                                                    :checked="fn.modes.pickcode"
+                                                                    @change="setWorkMode(fn, 'pickcode')"
+                                                                    class="w-3.5 h-3.5 rounded-full bg-black/50 border-white/20 text-blue-500 focus:ring-0 focus:ring-offset-0" />
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 路径映射文本区 -->
+                                                <div class="mt-2" v-show="fn.modes.path_replace">
+                                                    <label
+                                                        class="block text-xs uppercase tracking-wider text-slate-400 mb-2">路径映射</label>
+                                                    <textarea v-model="fn.path_map" rows="2"
+                                                        class="input-elegant font-mono tracking-wider text-xs leading-relaxed"
+                                                        placeholder="/CloudNAS/CloudDrive/115open => /"></textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </transition-group>
+
+                                    <div v-if="config.feinius.length === 0"
+                                        class="glass-card p-12 text-center border-dashed border-2 border-white/10 flex flex-col items-center justify-center">
+                                        <svg class="w-12 h-12 text-slate-600 mb-3" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                            </path>
+                                        </svg>
+                                        <p class="text-slate-400 mb-4 text-sm tracking-wide">协议网关均待激活</p>
+                                        <button @click="addFeiniu" class="btn-secondary">开始部署</button>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="activeTab === 'navidromes'" key="navidromes-panel"
+                                    class="space-y-6 w-full">
+                                    <!-- Navidrome服务器 -->
+                                    <div class="flex justify-between items-center px-2">
+                                        <h2 class="text-xl font-semibold text-slate-100 flex items-center gap-3">
+                                            <div class="w-6 h-6 flex items-center justify-center mr-1">
+                                                <img src="/static/navidrome.png"
+                                                    class="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(236,72,153,0.4)]"
+                                                    alt="Navidrome">
+                                            </div>
+                                            Navidrome服务器
+                                        </h2>
+                                        <button @click="addNavidrome"
+                                            class="text-sm text-pink-400 hover:text-pink-300 font-medium transition-colors flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 4v16m8-8H4"></path>
+                                            </svg>
+                                            添加Navidrome
+                                        </button>
+                                    </div>
+
+                                    <transition-group name="list" tag="div" class="space-y-6">
+                                        <div v-for="(nav, index) in config.navidromes" :key="'nav-'+index"
+                                            class="glass-card p-6 md:p-8"
+                                            :class="{'opacity-60 grayscale-[30%]': !nav.enabled}">
+
+                                            <div
+                                                class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+                                                <div class="flex items-center gap-3">
+                                                    <label class="switch-container">
+                                                        <input type="checkbox" v-model="nav.enabled" class="hidden" />
+                                                        <div class="switch-bg !bg-pink-900/40"
+                                                            :class="{'!bg-pink-500': nav.enabled}">
+                                                            <div class="switch-knob"></div>
+                                                        </div>
+                                                    </label>
+                                                    <input v-model="nav.name"
+                                                        class="bg-transparent text-xl font-semibold text-white focus:outline-none w-64 md:w-80 placeholder-slate-500"
+                                                        placeholder="应用名">
+                                                </div>
+                                                <button @click="removeNavidrome(index)"
+                                                    class="text-red-400/70 hover:text-red-400 text-sm flex items-center gap-1 transition-colors">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                        </path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            <div class="space-y-5" :class="{'pointer-events-none': !nav.enabled}">
+                                                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                                    <div class="md:col-span-3">
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Navidrome访问地址</label>
+                                                        <div class="relative">
+                                                            <div
+                                                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                                <svg class="w-4 h-4 text-slate-500" fill="none"
+                                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2"
+                                                                        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9">
+                                                                    </path>
+                                                                </svg>
+                                                            </div>
+                                                            <input v-model="nav.url" class="input-elegant pl-9"
+                                                                placeholder="http://192.168.1.100:4533">
+                                                        </div>
+                                                    </div>
+                                                    <div class="md:col-span-2">
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">反代端口</label>
+                                                        <div class="flex">
+                                                            <span
+                                                                class="bg-black/40 text-pink-400/80 px-3 py-[0.6rem] rounded-l-xl border border-r-0 border-white/5 text-sm font-mono">:</span>
+                                                            <input v-model="nav.proxy_port"
+                                                                class="input-elegant rounded-l-none pl-2 border-l-0 font-mono text-center"
+                                                                placeholder="8533">
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">用户名</label>
+                                                        <input v-model="nav.username"
+                                                            class="input-elegant text-sm font-mono tracking-wider"
+                                                            placeholder="Navidrome 用户名">
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">密码</label>
+                                                        <input v-model="nav.password" type="password"
+                                                            class="input-elegant text-sm font-mono tracking-wider"
+                                                            placeholder="Navidrome 密码">
+                                                    </div>
+                                                </div>
+
+
+
+                                                <div>
+                                                    <label
+                                                        class="block text-xs uppercase tracking-wider text-slate-400 mb-2">选择使用网盘</label>
+                                                    <select v-model="nav.drive_index" class="input-elegant text-sm">
+                                                        <option v-for="(drv, dIndex) in config.drives"
+                                                            :key="'opt-'+dIndex" :value="dIndex">
+                                                            {{ drv.name || '未命名集群' }}
+                                                        </option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="mt-2">
+                                                    <label
+                                                        class="block text-xs uppercase tracking-wider text-slate-400 mb-2">路径映射
+                                                        (仅替换前缀)</label>
+                                                    <textarea v-model="nav.path_map" rows="2"
+                                                        class="input-elegant font-mono tracking-wider text-xs leading-relaxed"
+                                                        placeholder="/CloudNAS/CloudDrive/115open => /"></textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </transition-group>
+
+                                    <div v-if="config.navidromes.length === 0"
+                                        class="glass-card p-12 text-center border-dashed border-2 border-white/10 flex flex-col items-center justify-center">
+                                        <svg class="w-12 h-12 text-slate-600 mb-3" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                            </path>
+                                        </svg>
+                                        <p class="text-slate-400 mb-4 text-sm tracking-wide">协议网关均待激活</p>
+                                        <button @click="addNavidrome" class="btn-secondary">开始部署</button>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="activeTab === 'tingreaders'" key="tingreaders-panel"
+                                    class="space-y-6 w-full">
+                                    <!-- TingReader服务器 -->
+                                    <div class="flex justify-between items-center px-2">
+                                        <h2 class="text-xl font-semibold text-slate-100 flex items-center gap-3">
+                                            <div class="w-6 h-6 flex items-center justify-center mr-1">
+                                                <img src="/static/tingreader.png"
+                                                    class="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(234,179,8,0.4)]"
+                                                    alt="TingReader">
+                                            </div>
+                                            TingReader服务器
+                                        </h2>
+                                        <button @click="addTingReader"
+                                            class="text-sm text-yellow-400 hover:text-yellow-300 font-medium transition-colors flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 4v16m8-8H4"></path>
+                                            </svg>
+                                            添加配置
+                                        </button>
+                                    </div>
+
+                                    <transition-group name="list" tag="div" class="space-y-6">
+                                        <div v-for="(abs, index) in config.tingreaders" :key="'abs-'+index"
+                                            class="glass-card p-6 md:p-8"
+                                            :class="{'opacity-60 grayscale-[30%]': !abs.enabled}">
+
+                                            <div
+                                                class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+                                                <div class="flex items-center gap-3">
+                                                    <label class="switch-container">
+                                                        <input type="checkbox" v-model="abs.enabled" class="hidden" />
+                                                        <div class="switch-bg !bg-yellow-900/40"
+                                                            :class="{'!bg-yellow-500': abs.enabled}">
+                                                            <div class="switch-knob"></div>
+                                                        </div>
+                                                    </label>
+                                                    <input v-model="abs.name"
+                                                        class="bg-transparent text-xl font-semibold text-white focus:outline-none w-64 md:w-80 placeholder-slate-500"
+                                                        placeholder="名称 / 配置 #1">
+                                                </div>
+                                                <button @click="removeTingReader(index)"
+                                                    class="text-red-400/70 hover:text-red-400 text-sm flex items-center gap-1 transition-colors">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                        </path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            <div class="space-y-5" :class="{'pointer-events-none': !abs.enabled}">
+                                                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                                    <div class="md:col-span-3">
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">TingReader地址</label>
+                                                        <div class="relative">
+                                                            <div
+                                                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                                <svg class="w-4 h-4 text-slate-500" fill="none"
+                                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2"
+                                                                        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9">
+                                                                    </path>
+                                                                </svg>
+                                                            </div>
+                                                            <input v-model="abs.url" class="input-elegant pl-9"
+                                                                placeholder="http://172.17.0.1:8080">
+                                                        </div>
+                                                    </div>
+                                                    <div class="md:col-span-2">
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">反代端口</label>
+                                                        <div class="flex">
+                                                            <span
+                                                                class="bg-black/40 text-yellow-500/80 px-3 py-[0.6rem] rounded-l-xl border border-r-0 border-white/5 text-sm font-mono">:</span>
+                                                            <input v-model="abs.proxy_port"
+                                                                class="input-elegant rounded-l-none pl-2 border-l-0 font-mono text-center"
+                                                                placeholder="9527">
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">用户名</label>
+                                                        <input v-model="abs.username" type="text"
+                                                            class="input-elegant text-sm font-mono tracking-wider"
+                                                            placeholder="TingReader 账号">
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="block text-xs uppercase tracking-wider text-slate-400 mb-2">密码</label>
+                                                        <input v-model="abs.password" type="password"
+                                                            class="input-elegant text-sm font-mono tracking-wider"
+                                                            placeholder="TingReader 密码">
+                                                    </div>
+                                                </div>
+                                                <div class="mt-4">
+                                                    <label
+                                                        class="block text-xs uppercase tracking-wider text-slate-400 mb-2">选择使用网盘</label>
+                                                    <select v-model="abs.drive_index" class="input-elegant text-sm">
+                                                        <option v-for="(drv, dIndex) in config.drives"
+                                                            :key="'opt-'+dIndex" :value="dIndex">
+                                                            {{ drv.name || '未命名集群' }}
+                                                        </option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="mt-2">
+                                                    <label
+                                                        class="block text-xs uppercase tracking-wider text-slate-400 mb-2">路径映射
+                                                        (仅替换前缀)</label>
+                                                    <textarea v-model="abs.path_map" rows="2"
+                                                        class="input-elegant font-mono tracking-wider text-xs leading-relaxed"
+                                                        placeholder="/CloudNAS/CloudDrive/115open => /"></textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </transition-group>
+
+                                    <div v-if="config.tingreaders.length === 0"
+                                        class="glass-card p-12 text-center border-dashed border-2 border-white/10 flex flex-col items-center justify-center">
+                                        <svg class="w-12 h-12 text-slate-600 mb-3" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                            </path>
+                                        </svg>
+                                        <p class="text-slate-400 mb-4 text-sm tracking-wide">协议网关均待激活</p>
+                                        <button @click="addTingReader" class="btn-secondary">添加配置</button>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="activeTab === '115cookie'" key="115cookie-panel"
+                                    class="space-y-6 w-full">
+                                    <!-- 115 Cookie 获取 -->
+                                    <div class="flex justify-between items-center px-2">
+                                        <h2 class="text-xl font-semibold text-slate-100 flex items-center gap-3">
+                                            <div class="w-6 h-6 flex items-center justify-center mr-1">
+                                                <img src="/static/115cookie.png"
+                                                    class="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                                                    alt="115 Cookie">
+                                            </div>
+                                            获取 115 Cookie
+                                        </h2>
+                                    </div>
+                                    <div class="glass-card p-6 md:p-8">
+                                        <div class="space-y-5">
+                                            <div
+                                                class="bg-black/20 p-4 rounded-xl border-l-4 border-yellow-500/80 mb-6">
+                                                <h3 class="text-sm font-semibold text-yellow-500 mb-2">⚠️ 重要注意事项</h3>
+                                                <ul class="text-xs text-slate-400 space-y-1.5 list-disc pl-4">
+                                                    <li>扫码登录后，所选设备之前的登录将会失效，请尽量选不常用的</li>
+                                                    <li>扫码得到的Cookie会跟随发起扫码的设备，如果退出登录Cookie也会失效</li>
+                                                    <li>推荐使用<strong>支付宝小程序</strong>扫码获取Cookie</li>
+                                                    <li>本站所有操作均在本地与网关间完成，确保Cookie安全</li>
+                                                </ul>
+                                            </div>
+
+                                            <div>
+                                                <label
+                                                    class="block text-xs uppercase tracking-wider text-slate-400 mb-2">第一步：选择扫码应用端</label>
+                                                <select v-model="cookieState.selectedAppType"
+                                                    class="input-elegant text-sm bg-black/40">
+                                                    <option v-for="(val, key) in cookieState.appOptions" :key="val"
+                                                        :value="val">{{ key }}</option>
+                                                </select>
+                                            </div>
+
+                                            <button @click="generateQrCode" :disabled="cookieState.isGenerating"
+                                                class="btn-glow w-full justify-center !py-2.5 !text-sm tracking-widest mt-4">
+                                                {{ cookieState.isGenerating ? '正在获取二维码...' : '生成扫码二维码' }}
+                                            </button>
+
+                                            <div v-show="cookieState.qrData"
+                                                class="text-center bg-black/20 rounded-xl p-6 border border-white/5 mt-6">
+                                                <p class="text-sm font-semibold text-slate-200 mb-4">请使用对应的 115 App 扫描
+                                                </p>
+                                                <img v-if="cookieState.qrImage" :src="cookieState.qrImage"
+                                                    class="mx-auto w-48 h-48 rounded-xl shadow-lg mb-4 bg-white p-2"
+                                                    alt="qr">
+                                                <div v-if="cookieState.scanStatus"
+                                                    :class="['px-4 py-2 rounded-lg text-xs font-medium inline-block', cookieState.statusClass]">
+                                                    {{ cookieState.scanStatus }}
+                                                </div>
+                                            </div>
+
+                                            <div v-show="cookieState.cookieText" class="mt-6">
+                                                <h3
+                                                    class="text-sm font-semibold text-emerald-400 mb-3 flex items-center gap-2">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                    🔑 您的 Cookie
+                                                </h3>
+                                                <textarea v-model="cookieState.cookieText"
+                                                    class="input-elegant font-mono text-xs leading-relaxed min-h-[120px]"
+                                                    readonly></textarea>
+                                                <button @click="copyCookie"
+                                                    class="btn-secondary w-full justify-center !text-sm mt-3 !text-emerald-300 hover:!bg-emerald-500/10 hover:!border-emerald-500/30">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                                                        </path>
+                                                    </svg>
+                                                    📋 复制获取到的 Cookie
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="activeTab === 'account'" key="account-panel" class="w-full space-y-6">
+
+                                    <!-- 账户安全卡片 -->
+                                    <div class="glass-card p-8 md:p-10 border border-indigo-500/20">
+                                        <h3 class="text-xl font-bold text-slate-100 flex items-center gap-2 mb-6">
+                                            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                                                </path>
+                                            </svg>
+                                            登录安全
+                                        </h3>
+                                        <div class="space-y-5">
+                                            <div>
+                                                <label
+                                                    class="block text-xs uppercase tracking-wider text-slate-400 mb-2">用户名</label>
+                                                <input type="text" v-model="config.admin_username"
+                                                    class="input-elegant text-sm font-mono tracking-wider"
+                                                    placeholder="admin">
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="block text-xs uppercase tracking-wider text-slate-400 mb-2">访问密码</label>
+                                                <input type="text" v-model="config.admin_password"
+                                                    class="input-elegant text-sm tracking-widest font-mono"
+                                                    placeholder="••••••••">
+                                            </div>
+                                            <div
+                                                class="p-4 rounded-xl bg-blue-900/20 border border-blue-500/20 flex gap-4">
+                                                <svg class="w-5 h-5 text-blue-400 shrink-0 mt-0.5" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                    </path>
+                                                </svg>
+                                                <div>
+                                                    <h4 class="text-sm font-semibold text-blue-300 mb-1">安全提示</h4>
+                                                    <p class="text-xs text-blue-200/70 leading-relaxed">
+                                                        修改用户名或密码并点击“部署当前配置”后，新令牌生效。</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 企业微信音乐机器人配置卡片 -->
+                                    <div class="glass-card p-8 md:p-10 border border-green-500/20">
+                                        <h3 class="text-xl font-bold text-slate-100 flex items-center gap-3 mb-2">
+                                            <svg class="w-6 h-6 text-green-400" viewBox="0 0 24 24" fill="currentColor">
+                                                <path
+                                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                            </svg>
+                                            企业微信交互设置
+                                            <span class="ml-auto">
+                                                <label class="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" v-model="config.wecom_music.enabled"
+                                                        class="sr-only peer">
+                                                    <div
+                                                        class="w-10 h-6 bg-white/10 peer-focus:ring-2 peer-focus:ring-green-500/30 rounded-full peer peer-checked:bg-green-500 transition-all after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4">
+                                                    </div>
+                                                    <span
+                                                        class="ml-3 text-xs font-medium text-slate-400 peer-checked:text-green-400">{{
+                                                        config.wecom_music.enabled ? '已启用' : '已关闭' }}</span>
+                                                </label>
+                                            </span>
+                                        </h3>
+                                        <p class="text-xs text-slate-500 mb-6">配置后，在企业微信发送歌曲名即可搜索并下载音乐。回调地址：<code
+                                                class="text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded font-mono text-[11px]">/wechat/music</code>
+                                        </p>
+
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                            <div>
+                                                <label
+                                                    class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Corp
+                                                    ID <span class="text-red-400">*</span></label>
+                                                <input type="text" v-model="config.wecom_music.corp_id"
+                                                    class="input-elegant font-mono text-sm" placeholder="wx...">
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Agent
+                                                    ID <span class="text-red-400">*</span></label>
+                                                <input type="text" v-model="config.wecom_music.agent_id"
+                                                    class="input-elegant font-mono text-sm" placeholder="1000000">
+                                            </div>
+                                            <div class="md:col-span-2">
+                                                <label
+                                                    class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Secret
+                                                    <span class="text-red-400">*</span></label>
+                                                <input type="password" v-model="config.wecom_music.secret"
+                                                    class="input-elegant font-mono text-sm" placeholder="应用 Secret">
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="block text-xs uppercase tracking-wider text-slate-400 mb-2">Token
+                                                    <span class="text-red-400">*</span></label>
+                                                <input type="text" v-model="config.wecom_music.token"
+                                                    class="input-elegant font-mono text-sm" placeholder="回调验证 Token">
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="block text-xs uppercase tracking-wider text-slate-400 mb-2">EncodingAESKey
+                                                    <span class="text-red-400">*</span></label>
+                                                <input type="password" v-model="config.wecom_music.encoding_aes_key"
+                                                    class="input-elegant font-mono text-sm" placeholder="43位字符 AES Key">
+                                            </div>
+                                            <div class="md:col-span-2">
+                                                <label
+                                                    class="block text-xs uppercase tracking-wider text-slate-400 mb-2">API
+                                                    反向代理 <span
+                                                        class="text-slate-600 text-[10px] normal-case tracking-normal">(可选)</span></label>
+                                                <input type="text" v-model="config.wecom_music.proxy"
+                                                    class="input-elegant font-mono text-sm"
+                                                    placeholder="https://your-proxy.example.com/cgi-bin">
+                                                <p class="text-[11px] text-slate-600 mt-1.5">填入则将企业微信 API
+                                                    请求转发到指定地址，不填则直连官方接口</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- 使用说明 -->
+                                        <div class="mt-6 p-4 rounded-xl bg-green-900/10 border border-green-500/15">
+                                            <h4 class="text-sm font-bold text-green-300 mb-3 flex items-center gap-2">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                    </path>
+                                                </svg>
+                                                指令说明
+                                            </h4>
+                                            <div class="text-xs text-slate-400 space-y-1.5 font-mono">
+                                                <p><span class="text-green-400">歌曲名称</span> → 搜索单曲</p>
+                                                <p><span class="text-green-400">专辑 小城故事</span> → 搜索专辑</p>
+                                                <p><span class="text-green-400">0</span> → 选择全部音乐源</p>
+                                                <p><span class="text-green-400">N</span> → 下一页 &nbsp; <span
+                                                        class="text-green-400">P</span> → 上一页</p>
+                                                <p><span class="text-green-400">序号</span> → 下载该首歌曲</p>
+                                                <p><span class="text-green-400">帮助</span> → 查看完整说明</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- 运行日志面板 -->
+                                <div v-else-if="activeTab === 'logs'" key="logs-panel" class="w-full flex flex-col gap-4">
+                                    <!-- 工具栏 -->
+                                    <div class="glass-card px-5 py-4 flex flex-wrap items-center gap-3">
+                                        <div class="flex items-center gap-2 mr-auto">
+                                            <div :class="['w-2.5 h-2.5 rounded-full transition-all', logStreaming ? 'bg-green-400 animate-pulse' : 'bg-slate-600']"></div>
+                                            <span class="text-sm font-bold text-slate-200">应用日志</span>
+                                            <span class="text-xs text-slate-500 font-mono">{{ logLines.length }} 行</span>
+                                        </div>
+
+                                        <!-- 过滤输入框 -->
+                                        <input v-model="logFilter" type="text"
+                                            class="input-elegant !py-1.5 !px-3 text-xs font-mono w-48"
+                                            placeholder="关键词过滤...">
+
+                                        <!-- 控制按钮组 -->
+                                        <button @click="toggleLogStream"
+                                            :class="['px-3 py-1.5 rounded-lg text-xs font-bold border transition-all', logStreaming ? 'bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30' : 'bg-green-500/20 text-green-300 border-green-500/30 hover:bg-green-500/30']">
+                                            {{ logStreaming ? '⏸ 暂停追踪' : '▶ 开始追踪' }}
+                                        </button>
+
+                                        <button @click="loadLogs"
+                                            class="px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 text-slate-300 hover:bg-white/5 transition-all">
+                                            ↻ 刷新
+                                        </button>
+
+                                        <button @click="clearLogDisplay"
+                                            class="px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 text-slate-500 hover:text-red-400 hover:border-red-500/20 transition-all">
+                                            ✕ 清屏
+                                        </button>
+                                    </div>
+
+                                    <!-- 日志终端区域 -->
+                                    <div ref="logContainer"
+                                        class="rounded-2xl bg-black/70 border border-white/5 font-mono text-xs leading-relaxed overflow-y-auto"
+                                        style="height: calc(100vh - 280px); min-height: 400px;">
+                                        <div class="p-5 space-y-0.5">
+                                            <div v-if="filteredLogLines.length === 0" class="text-slate-600 text-center py-20">
+                                                <div class="text-4xl mb-3">📋</div>
+                                                <div>暂无日志 —— 点击「开始追踪」实时监控</div>
+                                            </div>
+                                            <div v-for="(line, idx) in filteredLogLines" :key="idx"
+                                                :class="['py-0.5 px-2 rounded hover:bg-white/5 transition-colors break-all whitespace-pre-wrap', logLineClass(line)]">
+                                                {{ line }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </transition>
+
+                        </div>
+
+                        <!-- 页脚版权 -->
+                        <footer class="mt-8 text-center pb-8 border-t border-white/5 pt-8 flex flex-col items-center">
+                            <span class="text-xs font-semibold text-slate-500 tracking-widest uppercase mb-1">Gateway
+                                Proxy</span>
+                            <span class="text-[10px] text-slate-700">© 2026 极速体验</span>
+                        </footer>
+
+                    </div>
+                </main>
+
+            </div>
+        </transition>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, computed } = Vue;
+
+        createApp({
+            setup() {
+                const config = ref({ drives: [], embys: [], navidromes: [], tingreaders: [], feinius: [], admin_username: '', admin_password: '', wecom_music: { enabled: false, corp_id: '', secret: '', agent_id: '', token: '', encoding_aes_key: '', proxy: '' } });
+                const toast = ref({ show: false, msg: '', type: 'success' });
+
+                const showToast = (msg, type = 'success') => {
+                    toast.value = { show: true, msg, type };
+                    setTimeout(() => toast.value.show = false, 3500);
+                };
+
+                const activeTab = ref(localStorage.getItem('gatewayproxy_activeTab') || 'drives'); // drives | embys | navidromes | account | music
+                const isMobileMenuOpen = ref(false);
+
+                const setActiveTab = (tab) => {
+                    console.log('切换到标签:', tab);
+                    activeTab.value = tab;
+                    localStorage.setItem('gatewayproxy_activeTab', tab);
+                    isMobileMenuOpen.value = false;
+                };
+                const userName = ref('');
+                const passCode = ref('');
+                const isAuthenticated = ref(!!localStorage.getItem('nex_token'));
+
+                // --- 音乐下载功能配置 ---
+                // 直接连接 Go 后端 8117 端口，绕过 Python 代理以获得更高的稳定性
+                const API_ROOT = '/api/music'; // 回归统一的 Python 代理入口
+
+                const musicSearchQuery = ref('');
+                const musicResults = ref([]);
+                const isMusicSearching = ref(false);
+                const selectedMusicIds = ref([]);       // 新增：追踪批量选中的歌曲
+                const isBatchDownloading = ref(false);  // 新增：批量下载状态锁
+                const musicSourceOptions = ref([
+                    { id: 'netease', name: '网易云音乐' },
+                    { id: 'qq', name: 'QQ音乐' },
+                    { id: 'kugou', name: '酷狗音乐' },
+                    { id: 'kuwo', name: '酷我音乐' },
+                    { id: 'migu', name: '咪咕音乐' },
+                    { id: 'fivesing', name: '5sing' },
+                    { id: 'jamendo', name: 'Jamendo' },
+                    { id: 'joox', name: 'JOOX' },
+                    { id: 'qianqian', name: '千千音乐' },
+                    { id: 'soda', name: '汽水音乐' },
+                    { id: 'bilibili', name: 'Bilibili' }
+                ]);
+                const selectedMusicSources = ref(['netease', 'qq', 'kugou', 'kuwo', 'migu', 'fivesing', 'jamendo', 'joox', 'qianqian', 'soda', 'bilibili']); // 默认全选所有源
+
+                const toggleMusicSource = (sourceId) => {
+                    const idx = selectedMusicSources.value.indexOf(sourceId);
+                    if (idx > -1) {
+                        if (selectedMusicSources.value.length > 1) {
+                            selectedMusicSources.value.splice(idx, 1);
+                        } else {
+                            showToast('至少需要保留一个音乐源', 'error');
+                        }
+                    } else {
+                        selectedMusicSources.value.push(sourceId);
+                    }
+                };
+
+                const searchType = ref('song');
+                const albumResults = ref([]);
+                const isViewingAlbum = ref(false);
+                const currentAlbumName = ref('');
+
+                const searchMusic = async () => {
+                    if (!musicSearchQuery.value.trim()) {
+                        showToast('请输入搜索关键词', 'error');
+                        return;
+                    }
+                    isMusicSearching.value = true;
+                    musicResults.value = [];
+                    albumResults.value = [];
+                    isViewingAlbum.value = false;
+                    currentAlbumName.value = '';
+                    try {
+                        const sourceStr = selectedMusicSources.value.join(',');
+                        const res = await axios.get(`${API_ROOT}/search`, {
+                            params: {
+                                q: musicSearchQuery.value.trim(),
+                                sources: sourceStr,
+                                type: searchType.value,
+                                format: 'json'
+                            }
+                        });
+
+                        if (searchType.value === 'song') {
+                            if (res.data && res.data.songs) {
+                                musicResults.value = res.data.songs.map(s => ({
+                                    ...s,
+                                    size: s.size || s.Size || null,
+                                    bitrate: s.bitrate || null,
+                                    isValid: null
+                                }));
+
+                                if (musicResults.value.length === 0) {
+                                    showToast('未找到匹配歌曲', 'error');
+                                } else {
+                                    musicResults.value.slice(0, 20).forEach(song => inspectSong(song));
+                                }
+                            } else {
+                                showToast(res.data.error || '搜索失败', 'error');
+                            }
+                        } else {
+                            if (res.data && res.data.playlists) {
+                                albumResults.value = res.data.playlists;
+                                if (albumResults.value.length === 0) {
+                                    showToast('未找到匹配专辑', 'error');
+                                }
+                            } else {
+                                showToast(res.data.error || '搜索专辑失败', 'error');
+                            }
+                        }
+                    } catch (e) {
+                        showToast('网络错误，搜索请求失败', 'error');
+                    } finally {
+                        isMusicSearching.value = false;
+                    }
+                };
+
+                const fetchAlbumSongs = async (album) => {
+                    isMusicSearching.value = true;
+                    musicResults.value = [];
+                    currentAlbumName.value = album.name || album.Name;
+                    isViewingAlbum.value = true;
+
+                    try {
+                        const res = await axios.get(`${API_ROOT}/album`, {
+                            params: {
+                                id: album.id || album.ID,
+                                source: album.source || album.Source,
+                                format: 'json'
+                            }
+                        });
+
+                        if (res.data && res.data.songs) {
+                            musicResults.value = res.data.songs.map(s => ({
+                                ...s,
+                                size: s.size || s.Size || null,
+                                bitrate: s.bitrate || null,
+                                isValid: null
+                            }));
+
+                            if (musicResults.value.length === 0) {
+                                showToast('此专辑暂无歌曲', 'error');
+                            } else {
+                                musicResults.value.slice(0, 20).forEach(song => inspectSong(song));
+                            }
+                        } else {
+                            showToast(res.data.error || '获取专辑详情失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('网络错误，获取专辑失败', 'error');
+                    } finally {
+                        isMusicSearching.value = false;
+                    }
+                };
+
+                const cancelAlbumView = () => {
+                    isViewingAlbum.value = false;
+                    currentAlbumName.value = '';
+                };
+
+                // 格式化时长 (秒 -> 分:秒)
+                const formatDuration = (s) => {
+                    if (!s) return '';
+                    if (typeof s === 'string' && s.includes(':')) return s;
+                    const min = Math.floor(s / 60);
+                    const sec = Math.floor(s % 60);
+                    return `${min}:${sec.toString().padStart(2, '0')}`;
+                };
+
+                // 格式化大小 (字节 -> MB)
+                const formatSize = (bytes) => {
+                    if (!bytes || bytes <= 0) return '';
+                    if (typeof bytes === 'string') return bytes; // 已经是格式化好的字符串
+                    const mb = bytes / (1024 * 1024);
+                    return mb.toFixed(1) + 'MB';
+                };
+
+                // 新增：模仿原版的预检功能
+                const inspectSong = async (song) => {
+                    const sId = song.id || song.ID;
+                    const sSource = song.source || song.Source;
+                    const sDuration = song.duration || song.Duration || 0;
+                    const sExtra = song.extra || song.Extra || '';
+
+                    try {
+                        const res = await axios.get(`${API_ROOT}/inspect`, {
+                            params: {
+                                id: sId,
+                                source: sSource,
+                                duration: sDuration,
+                                extra: typeof sExtra === 'object' ? JSON.stringify(sExtra) : sExtra
+                            }
+                        });
+                        if (res.data && res.data.valid) {
+                            // 更新歌曲信息
+                            song.size = res.data.size;
+                            song.bitrate = res.data.bitrate;
+                            song.isValid = true;
+                        } else {
+                            song.isValid = false;
+                        }
+                    } catch (e) {
+                        console.warn('预检失败:', sId);
+                    }
+                };
+
+                const downloadMusic = (song) => {
+                    // 适配大小写字段名
+                    const sId = song.id || song.ID;
+                    const sSource = song.source || song.Source;
+                    const sName = song.name || song.Name;
+                    const sArtist = song.artist || song.Artist;
+                    const sAlbum = song.album || song.Album || 'Unknown';
+                    const sCover = song.cover || song.Cover || '';
+                    const sExtra = song.extra || song.Extra || '';
+
+                    // 构建下载链接
+                    const params = new URLSearchParams({
+                        id: sId,
+                        source: sSource,
+                        name: sName,
+                        artist: sArtist,
+                        album: sAlbum,
+                        cover: sCover,
+                        extra: typeof sExtra === 'object' ? JSON.stringify(sExtra) : sExtra,
+                        save_local: '1', // 默认保存到服务器本地
+                        embed: '1'       // 开启元数据抓取（用于下载歌词和封面）
+                    });
+
+                    // 触发下载请求
+                    showToast(`正在开始下载: ${sName}`, 'success');
+                    // 直接请求 Go 后端下载接口
+                    const downloadUrl = `${API_ROOT}/download?${params.toString()}`;
+
+                    // 如果是保存到服务器本地，使用 axios 调用接口
+                    axios.get(downloadUrl)
+                        .then(res => {
+                            if (res.data.status === 'ok') {
+                                showToast(`下载成功: ${res.data.filename}`, 'success');
+                            } else {
+                                showToast(res.data.error || '下载失败', 'error');
+                            }
+                        })
+                        .catch(e => {
+                            showToast('下载请求发送失败', 'error');
+                        });
+                };
+
+                const filteredMusicResults = computed(() => {
+                    // 如果音源全选，直接返回原始结果（性能更优）
+                    if (selectedMusicSources.value.length === 11) return musicResults.value;
+                    return musicResults.value.filter(song => {
+                        const s = (song.source || song.Source || '').toLowerCase();
+                        return selectedMusicSources.value.includes(s);
+                    });
+                });
+
+                const filteredAlbumResults = computed(() => {
+                    if (selectedMusicSources.value.length === 11) return albumResults.value;
+                    return albumResults.value.filter(album => {
+                        const s = (album.source || album.Source || '').toLowerCase();
+                        return selectedMusicSources.value.includes(s);
+                    });
+                });
+
+                // 全选/取消全选
+                const isAllSelected = computed(() => {
+                    return filteredMusicResults.value.length > 0 && selectedMusicIds.value.length === filteredMusicResults.value.length;
+                });
+
+                const toggleSelectAll = () => {
+                    if (isAllSelected.value) {
+                        selectedMusicIds.value = [];
+                    } else {
+                        selectedMusicIds.value = filteredMusicResults.value.map(s => s.id || s.ID);
+                    }
+                };
+
+                // 批量下载逻辑
+                const batchDownload = async () => {
+                    if (isBatchDownloading.value || selectedMusicIds.value.length === 0) return;
+
+                    isBatchDownloading.value = true;
+                    const total = selectedMusicIds.value.length;
+                    showToast(`准备批量下载 ${total} 首歌...`, 'info');
+
+                    try {
+                        // 遍历选中歌曲ID进行下载
+                        for (const sId of selectedMusicIds.value) {
+                            const song = musicResults.value.find(s => (s.id || s.ID) === sId);
+                            if (song) {
+                                // 发起下载请求
+                                downloadMusic(song);
+                                await new Promise(r => setTimeout(r, 500));
+                            }
+                        }
+                        showToast('批量下载任务已全部提交！', 'success');
+                        selectedMusicIds.value = []; // 下载完清空选中
+                    } catch (e) {
+                        showToast('批量下载过程中出错', 'error');
+                    } finally {
+                        isBatchDownloading.value = false;
+                    }
+                };
+                // ------------------
+
+                // Axios 全局拦截器处理 401
+                axios.interceptors.response.use(response => response, error => {
+                    if (error.response && error.response.status === 401) {
+                        isAuthenticated.value = false;
+                        localStorage.removeItem('nex_token');
+                        showToast('身份验证失效或未登录，请重新认证', 'error');
+                    }
+                    return Promise.reject(error);
+                });
+
+                // 设置 Axios 请求头
+                if (isAuthenticated.value) {
+                    axios.defaults.headers.common['Authorization'] = 'Bearer ' + localStorage.getItem('nex_token');
+                }
+
+                const login = async () => {
+                    if (!userName.value || !passCode.value) {
+                        showToast('账号或密码不可为空', 'error');
+                        return;
+                    }
+                    try {
+                        const res = await axios.post('/api/config_302/login', { username: userName.value, password: passCode.value });
+                        if (res.data.status === 'ok') {
+                            const token = res.data.token;
+                            localStorage.setItem('nex_token', token);
+                            axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+                            isAuthenticated.value = true;
+                            passCode.value = ''; // 清空密码
+                            showToast('验证通过，欢迎回来！', 'success');
+                            loadConfig();
+                        } else {
+                            showToast('密码错误', 'error');
+                        }
+                    } catch (e) {
+                        showToast('登录服务不可用', 'error');
+                    }
+                };
+
+                const logout = () => {
+                    isAuthenticated.value = false;
+                    localStorage.removeItem('nex_token');
+                    delete axios.defaults.headers.common['Authorization'];
+                    showToast('已安全锁定', 'success');
+                };
+
+                const loadConfig = async () => {
+                    if (!isAuthenticated.value) return;
+                    try {
+                        const res = await axios.get('/api/config_302/get');
+                        if (res.data) {
+                            config.value.drives = res.data.drives || [];
+                            config.value.embys = (res.data.embys || []).map(emby => ({
+                                ...emby,
+                                modes: {
+                                    share: emby.modes?.share || false,
+                                    path_replace: emby.modes?.path_replace ?? true,
+                                    pickcode: emby.modes?.pickcode || false
+                                }
+                            }));
+                            config.value.navidromes = res.data.navidromes || [];
+                            config.value.tingreaders = res.data.tingreaders || [];
+                            config.value.feinius = (res.data.feinius || []).map(fn => ({
+                                ...fn,
+                                modes: {
+                                    share: fn.modes?.share || false,
+                                    path_replace: fn.modes?.path_replace ?? true,
+                                    pickcode: fn.modes?.pickcode || false
+                                }
+                            }));
+                            config.value.wecom_music = {
+                                enabled: res.data.wecom_music?.enabled ?? false,
+                                corp_id: res.data.wecom_music?.corp_id || '',
+                                secret: res.data.wecom_music?.secret || '',
+                                agent_id: res.data.wecom_music?.agent_id || '',
+                                token: res.data.wecom_music?.token || '',
+                                encoding_aes_key: res.data.wecom_music?.encoding_aes_key || '',
+                                proxy: res.data.wecom_music?.proxy || ''
+                            };
+                            config.value.admin_username = res.data.admin_username || '';
+                            config.value.admin_password = res.data.admin_password || '';
+                        }
+                        if (config.value.drives.length === 0 && config.value.embys.length === 0 && config.value.navidromes.length === 0) {
+                            addDrive();
+                            addEmby();
+                            addNavidrome();
+                        }
+                    } catch (e) {
+                        showToast('无法承载底层网络配置结构，请检查服务状态', 'error');
+                    }
+                };
+
+                const saveConfig = async () => {
+                    try {
+                        await axios.post('/api/config_302/save', config.value);
+                        showToast('配置已写入底层网络并瞬时热重载完毕');
+                    } catch (e) {
+                        showToast('写入被拒绝', 'error');
+                    }
+                };
+
+                const testCookie = async (cookieStr) => {
+                    if (!cookieStr) {
+                        showToast('凭证不可为空', 'error');
+                        return;
+                    }
+                    try {
+                        const res = await axios.post('/api/config_302/test_115', { cookie: cookieStr });
+                        if (res.data.status === 'ok') {
+                            showToast(res.data.message || '握手成功，网络层数据校验通过', 'success');
+                        } else {
+                            showToast(res.data.message || '凭证被拒绝，通信失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('测试异常：连接被重置', 'error');
+                    }
+                };
+
+                const restartContainer = async () => {
+                    try {
+                        const resp = await axios.post('/api/config_302/restart', {}, {
+                            headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('nex_token')}`
+                            }
+                        });
+                        // 清空配置显示，给人一种正在关闭的感觉
+                        // 不要直接设置 null，避免模板访问报错，可以重置为初始状态或者显示加载中
+                        config.value = {
+                            drives: [],
+                            embys: [],
+                            navidromes: [],
+                            tingreaders: [],
+                            feinius: [],
+                            admin_username: '',
+                            admin_password: '',
+                            wecom_music: {
+                                enabled: false,
+                                corp_id: '',
+                                secret: '',
+                                agent_id: '',
+                                token: '',
+                                encoding_aes_key: '',
+                                proxy: ''
+                            }
+                        };
+                        showToast('正在指令容器底层网络重构，请稍候...', 'success');
+                        setTimeout(() => location.reload(), 3000);
+                    } catch (error) {
+                        console.error('重启请求失败:', error);
+                    }
+                };
+
+                const manualCleanup = async (idx) => {
+                    try {
+                        const res = await axios.post('/api/config_302/manual_cleanup', {
+                            drive_index: idx, account_type: 'main', account_index: 0
+                        });
+                        if (res.data.status === 'ok') {
+                            showToast(res.data.message || '碎片清理完成', 'success');
+                        } else {
+                            showToast(res.data.message || '清理遇阻', 'error');
+                        }
+                    } catch (e) {
+                        showToast('服务未响应清理请求', 'error');
+                    }
+                };
+
+                const addDrive = () => {
+                    config.value.drives.push({
+                        name: `[卷] 115网盘_0${config.value.drives.length + 1}`,
+                        cookie: '',
+                        enable_sync: false,
+                        enable_rapid: false,
+                        auto_delete: true,
+                        rapid_accounts: [],
+                        delete_cron: '30 3 * * *',
+                        recycle_code: '',
+                        upload_dir: '/GatewayProxy'
+                    });
+                };
+
+                const removeDrive = (index) => {
+                    config.value.drives.splice(index, 1);
+                };
+
+                const addRapidAccount = (drive) => {
+                    if (!drive.rapid_accounts) drive.rapid_accounts = [];
+                    drive.rapid_accounts.push({
+                        name: `小号节点_${drive.rapid_accounts.length + 1}`,
+                        cookie: ''
+                    });
+                };
+
+                const addEmby = () => {
+                    config.value.embys.push({
+                        name: `Emby网关_${config.value.embys.length + 1}`,
+                        url: '',
+                        key: '',
+                        proxy_port: config.value.embys.length === 0 ? '8116' : (8116 + config.value.embys.length).toString(),
+                        enabled: true,
+                        drive_index: -1,
+                        modes: { share: false, path_replace: true, pickcode: false },
+                        preload: { enabled: true, count: 0, user: 'all' },
+                        path_map: '/CloudNAS/CloudDrive/115open => /'
+                    });
+                };
+
+                const removeEmby = (index) => {
+                    config.value.embys.splice(index, 1);
+                };
+
+                const addNavidrome = () => {
+                    config.value.navidromes.push({
+                        name: `Navidrome网关_${config.value.navidromes.length + 1}`,
+                        url: '',
+                        proxy_port: config.value.navidromes.length === 0 ? '8533' : (8533 + config.value.navidromes.length).toString(),
+                        enabled: true,
+                        drive_index: 0,
+                        username: '',
+                        password: '',
+                        path_map: '/CloudNAS/CloudDrive/115open => /'
+                    });
+                };
+
+                const removeNavidrome = (index) => {
+                    config.value.navidromes.splice(index, 1);
+                };
+
+                const addTingReader = () => {
+                    config.value.tingreaders.push({
+                        name: `TingReader`,
+                        url: '',
+                        proxy_port: config.value.tingreaders.length === 0 ? '9527' : (9527 + config.value.tingreaders.length).toString(),
+                        enabled: true,
+                        drive_index: 0,
+                        username: '',
+                        password: '',
+                        path_map: '/CloudNAS/CloudDrive/115open => /'
+                    });
+                };
+
+                const removeTingReader = (index) => {
+                    config.value.tingreaders.splice(index, 1);
+                };
+
+
+                const addFeiniu = () => {
+                    config.value.feinius.push({
+                        name: `飞牛影视网关_${config.value.feinius.length + 1}`,
+                        url: '',
+                        proxy_port: config.value.feinius.length === 0 ? '8097' : (8097 + config.value.feinius.length).toString(),
+                        enabled: true,
+                        drive_index: 0,
+                        username: '',
+                        password: '',
+                        modes: { share: false, path_replace: true, pickcode: false },
+                        path_map: '/CloudNAS/CloudDrive/115open => /'
+                    });
+                };
+
+                const removeFeiniu = (index) => {
+                    config.value.feinius.splice(index, 1);
+                };
+
+                // ===== 115 Cookie 获取逻辑 =====
+                const cookieState = ref({
+                    appOptions: {
+                        "115生活(支付宝小程序)": "alipaymini",
+                        "网页版": "web",
+                        "115生活(Android端)": "android",
+                        "115生活(iOS端)": "ios",
+                        "115网盘(Android端)": "115android",
+                        "115网盘(iOS端)": "115ios",
+                        "115网盘(iPad端)": "115ipad",
+                        "115网盘(Android电视端)": "tv",
+                        "115生活(微信小程序)": "wechatmini",
+                        "115生活(鸿蒙端)": "harmony"
+                    },
+                    selectedAppType: "alipaymini",
+                    isGenerating: false,
+                    qrData: null,
+                    qrImage: "",
+                    scanStatus: "",
+                    statusClass: "",
+                    cookieText: "",
+                    checkInterval: null
+                });
+
+                const stopStatusCheck = () => {
+                    if (cookieState.value.checkInterval) {
+                        clearInterval(cookieState.value.checkInterval);
+                        cookieState.value.checkInterval = null;
+                    }
+                };
+
+                const generateQrCode = async () => {
+                    cookieState.value.isGenerating = true;
+                    cookieState.value.qrData = null;
+                    cookieState.value.cookieText = "";
+                    cookieState.value.scanStatus = "";
+                    stopStatusCheck();
+
+                    try {
+                        const res = await axios.post('/api/cookie_115/get_qrcode', { app_type: cookieState.value.selectedAppType });
+                        if (res.data.success) {
+                            cookieState.value.qrData = res.data;
+                            cookieState.value.qrImage = res.data.qr_url;
+                            startStatusCheck();
+                        } else {
+                            showToast(res.data.message || '获取二维码失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('获取二维码网络错误', 'error');
+                    } finally {
+                        cookieState.value.isGenerating = false;
+                    }
+                };
+
+                const startStatusCheck = () => {
+                    cookieState.value.scanStatus = "⏳ 等待扫描...";
+                    cookieState.value.statusClass = "bg-blue-500/20 text-blue-300";
+
+                    cookieState.value.checkInterval = setInterval(async () => {
+                        try {
+                            const res = await axios.post('/api/cookie_115/check_status', {
+                                uid: cookieState.value.qrData.uid,
+                                time: cookieState.value.qrData.time,
+                                sign: cookieState.value.qrData.sign,
+                                api_app_type: cookieState.value.qrData.api_app_type
+                            });
+
+                            if (res.data.success) {
+                                const status = res.data.status;
+                                if (status === 0) {
+                                    cookieState.value.scanStatus = "⏳ 等待扫描...";
+                                    cookieState.value.statusClass = "bg-blue-500/20 text-blue-300";
+                                } else if (status === 1) {
+                                    cookieState.value.scanStatus = "📱 已扫描，请在手机端确认";
+                                    cookieState.value.statusClass = "bg-yellow-500/20 text-yellow-300";
+                                } else if (status === 2) {
+                                    stopStatusCheck();
+                                    cookieState.value.scanStatus = "✅ 登录成功，正在获取 Cookie...";
+                                    cookieState.value.statusClass = "bg-emerald-500/20 text-emerald-300";
+                                    await getCookie();
+                                } else if (status === -1) {
+                                    stopStatusCheck();
+                                    cookieState.value.scanStatus = "❌ 二维码已过期";
+                                    cookieState.value.statusClass = "bg-red-500/20 text-red-300";
+                                } else if (status === -2) {
+                                    stopStatusCheck();
+                                    cookieState.value.scanStatus = "❌ 用户已取消登录";
+                                    cookieState.value.statusClass = "bg-red-500/20 text-red-300";
+                                }
+                            }
+                        } catch (e) {
+                            console.error('状态检查异常:', e);
+                        }
+                    }, 2000);
+                };
+
+                const getCookie = async () => {
+                    try {
+                        const res = await axios.post('/api/cookie_115/get_cookie', {
+                            uid: cookieState.value.qrData.uid,
+                            api_app_type: cookieState.value.qrData.api_app_type
+                        });
+
+                        if (res.data.success) {
+                            cookieState.value.cookieText = res.data.cookie;
+                            cookieState.value.scanStatus = "✅ 获取成功！";
+                        } else {
+                            showToast(res.data.message || '获取 Cookie 失败', 'error');
+                            cookieState.value.scanStatus = "❌ 获取失败";
+                            cookieState.value.statusClass = "bg-red-500/20 text-red-300";
+                        }
+                    } catch (e) {
+                        showToast('获取 Cookie 失败', 'error');
+                    }
+                };
+
+                const copyCookie = async () => {
+                    const text = cookieState.value.cookieText;
+                    if (!text) return;
+
+                    try {
+                        // 1. 尝试使用现代 Clipboard API
+                        if (navigator.clipboard && window.isSecureContext) {
+                            await navigator.clipboard.writeText(text);
+                            showToast('Cookie 已复制到剪贴板', 'success');
+                            return;
+                        }
+
+                        // 2. 备选方案：传统的 execCommand('copy') 方式
+                        const textArea = document.createElement("textarea");
+                        textArea.value = text;
+                        // 确保元素在视口外
+                        textArea.style.position = "fixed";
+                        textArea.style.left = "-9999px";
+                        textArea.style.top = "0";
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+
+                        const successful = document.execCommand('copy');
+                        document.body.removeChild(textArea);
+
+                        if (successful) {
+                            showToast('Cookie 已复制到剪贴板', 'success');
+                        } else {
+                            throw new Error('execCommand failed');
+                        }
+                    } catch (e) {
+                        console.error('复制失败:', e);
+                        showToast('复制失败，请手动选择复制', 'error');
+                    }
+                };
+
+                const setWorkMode = (service, mode) => {
+                    if (!service.modes) {
+                        service.modes = { path_replace: true, share: false, pickcode: false };
+                    }
+                    service.modes.path_replace = (mode === 'path_replace');
+                    service.modes.share = (mode === 'share');
+                    service.modes.pickcode = (mode === 'pickcode');
+                };
+
+                onMounted(() => {
+                    loadConfig();
+                });
+
+                // ─────────── 运行日志 ───────────
+                const logLines      = ref([]);
+                const logFilter     = ref('');
+                const logStreaming   = ref(false);
+                const logContainer  = ref(null);
+                let   _logNextPos   = 0;
+                let   _logTimer     = null;
+                const TOKEN         = localStorage.getItem('nex_token') || 'nex_gateway_secure_2026';
+
+                const filteredLogLines = Vue.computed(() => {
+                    const kw = logFilter.value.trim().toLowerCase();
+                    if (!kw) return logLines.value;
+                    return logLines.value.filter(l => l.toLowerCase().includes(kw));
+                });
+
+                const logLineClass = (line) => {
+                    const l = line.toLowerCase();
+                    if (l.includes('error') || l.includes('❌') || l.includes('失败')) return 'text-red-400';
+                    if (l.includes('warning') || l.includes('warn') || l.includes('⚠')) return 'text-yellow-400';
+                    if (l.includes('success') || l.includes('✅') || l.includes('完成')) return 'text-emerald-400';
+                    if (l.includes('info') || l.includes('>>>') || l.includes('[system]')) return 'text-blue-300';
+                    return 'text-slate-400';
+                };
+
+                const _scrollToBottom = () => {
+                    Vue.nextTick(() => {
+                        if (logContainer.value) {
+                            logContainer.value.scrollTop = logContainer.value.scrollHeight;
+                        }
+                    });
+                };
+
+                const loadLogs = async () => {
+                    try {
+                        const res = await axios.get('/api/config_302/logs', {
+                            params: { lines: 300 },
+                            headers: { Authorization: `Bearer ${TOKEN}` }
+                        });
+                        logLines.value = res.data.lines || [];
+                        _logNextPos = res.data.next_pos || 0;
+                        _scrollToBottom();
+                    } catch (e) {
+                        logLines.value = ['[错误] 读取日志失败，请确认已登录'];
+                    }
+                };
+
+                const _pollLogs = async () => {
+                    try {
+                        const res = await axios.get('/api/config_302/logs/stream', {
+                            params: { since_pos: _logNextPos }
+                        });
+                        const { lines, next_pos } = res.data;
+                        if (lines && lines.length > 0) {
+                            logLines.value.push(...lines);
+                            // 防止内存溢出：最多保留 2000 行
+                            if (logLines.value.length > 2000) {
+                                logLines.value = logLines.value.slice(-2000);
+                            }
+                            _scrollToBottom();
+                        }
+                        _logNextPos = next_pos;
+                    } catch (_) { /* 静默失败，等待下次轮询 */ }
+                };
+
+                const toggleLogStream = () => {
+                    if (logStreaming.value) {
+                        // 暂停
+                        logStreaming.value = false;
+                        if (_logTimer) { clearInterval(_logTimer); _logTimer = null; }
+                    } else {
+                        // 启动追踪
+                        logStreaming.value = true;
+                        if (logLines.value.length === 0) loadLogs();
+                        _logTimer = setInterval(_pollLogs, 2000);
+                    }
+                };
+
+                const clearLogDisplay = () => {
+                    logLines.value = [];
+                };
+                // ─────────── 日志结束 ───────────
+
+                return {
+                    config,
+                    toast,
+                    activeTab,
+                    userName,
+                    isAuthenticated,
+                    passCode,
+                    login,
+                    logout,
+                    loadConfig,
+                    saveConfig,
+                    restartContainer,
+                    testCookie,
+                    manualCleanup,
+                    setWorkMode,
+                    addDrive,
+                    removeDrive,
+                    addRapidAccount,
+                    addEmby,
+                    removeEmby,
+                    addNavidrome,
+                    removeNavidrome,
+                    addTingReader,
+                    removeTingReader,
+                    addFeiniu,
+                    removeFeiniu,
+                    cookieState,
+                    generateQrCode,
+                    copyCookie,
+                    isMobileMenuOpen,
+                    setActiveTab,
+                    musicSearchQuery,
+                    musicResults,
+                    isMusicSearching,
+                    musicSourceOptions,
+                    selectedMusicSources,
+                    toggleMusicSource,
+                    searchMusic,
+                    downloadMusic,
+                    formatDuration,
+                    formatSize,
+                    filteredMusicResults,
+                    filteredAlbumResults,
+                    inspectSong,
+                    selectedMusicIds,
+                    isAllSelected,
+                    toggleSelectAll,
+                    isBatchDownloading,
+                    batchDownload,
+                    searchType,
+                    albumResults,
+                    isViewingAlbum,
+                    currentAlbumName,
+                    fetchAlbumSongs,
+                    cancelAlbumView,
+                    // 运行日志
+                    logLines,
+                    logFilter,
+                    logStreaming,
+                    logContainer,
+                    filteredLogLines,
+                    logLineClass,
+                    loadLogs,
+                    toggleLogStream,
+                    clearLogDisplay,
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
