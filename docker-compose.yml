@@ -10,7 +10,7 @@ services:
       - "8116:8116"
       - "8533:8533"
       - "9527:9527"
-      - "8117:8080"
+      - "8117:8090"
     volumes:
       - ./config:/app/config
       - ./static:/app/static
@@ -20,4 +20,4 @@ services:
       - ./music/data:/app/music/data
     environment:
       - TZ=Asia/Shanghai
-      - MUSIC_DL_URL=http://127.0.0.1:8080/music
+      - MUSIC_DL_URL=http://127.0.0.1:8090/music

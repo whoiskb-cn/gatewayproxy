@@ -37,9 +37,9 @@ COPY --from=go-builder /build/music-dl ./music/music-dl
 RUN chmod +x start.sh ./music/music-dl
 
 # 设置环境变量，指向容器内部的 Go 服务
-ENV MUSIC_DL_URL=http://0.0.0.0:8080/music
+ENV MUSIC_DL_URL=http://127.0.0.1:8090/music
 
 # 暴露端口
-EXPOSE 8115 8116 8533 9527 8080
+EXPOSE 8115 8116 8533 9527 8090
 
 CMD ["./start.sh"]
