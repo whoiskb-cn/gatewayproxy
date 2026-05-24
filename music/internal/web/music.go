@@ -265,6 +265,17 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 			allSongs = filterSongsByExactArtist(allSongs, exactArtist)
 		}
 
+		if c.Query("format") == "json" {
+			c.JSON(http.StatusOK, gin.H{
+				"songs":     allSongs,
+				"playlists": allPlaylists,
+				"type":      searchType,
+				"sources":   sources,
+				"error":     errorMsg,
+			})
+			return
+		}
+
 		renderIndex(c, allSongs, allPlaylists, keyword, sources, errorMsg, searchType, "", "", "", false, "", importCollection)
 	})
 

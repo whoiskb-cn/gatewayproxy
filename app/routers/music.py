@@ -92,15 +92,34 @@ def sort_search_response(data):
 async def search_music(q: str, type: str = "song", sources: str = Query(None)):
     """搜索音乐"""
     params = {"q": q, "type": type, "format": "json"}
-    
+
     # 如果 sources 是逗号分隔的字符串，直接传递给 go-music-dl
     if sources:
         params["sources"] = sources
-    
+
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.get(f"{MUSIC_DL_URL}/search", params=params)
-            return JSONResponse(content=sort_search_response(resp.json()), status_code=resp.status_code)
+            try:
+                payload = resp.json()
+            except ValueError:
+                content_type = resp.headers.get("Content-Type", "")
+                preview = resp.text[:200].replace("\n", " ")
+                logger.error(
+                    f"[Music] 上游 {MUSIC_DL_URL}/search 返回非 JSON 响应 "
+                    f"(status={resp.status_code}, content-type={content_type})。"
+                    f"通常是 music-dl 服务未启动、版本过旧（缺少 format=json 分支）或路径错误。"
+                    f"响应预览: {preview}"
+                )
+                return JSONResponse(
+                    content={
+                        "error": "music-dl upstream did not return JSON",
+                        "upstream_status": resp.status_code,
+                        "upstream_content_type": content_type,
+                    },
+                    status_code=502,
+                )
+            return JSONResponse(content=sort_search_response(payload), status_code=resp.status_code)
     except Exception as e:
         logger.error(f"[Music] 搜索失败: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
