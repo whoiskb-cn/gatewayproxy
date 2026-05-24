@@ -1,6 +1,6 @@
 # GatewayProxy
 
-一个面向自建媒体服务的反向代理与 302 重定向网关，把 Emby / Navidrome / TingReader（有声书）/ 飞牛影视 等服务的媒体请求接管下来，配合 115 网盘等存储后端做按需直链下发与播放加速；同时集成了一个独立的 Go 音乐下载子服务以及微信公众号点歌入口。
+一个面向自建媒体服务的反向代理与 302 重定向网关，把 Emby / Navidrome / TingReader（有声书）/ 飞牛影视 等服务的媒体请求接管下来，配合 115 网盘等存储后端做按需直链下发与播放加速；同时集成了一个独立的 Go 音乐下载子服务以及企业微信点歌入口。
 
 > 项目原名 Emby302 / ChillPoster，现已重命名为 **gatewayproxy**。
 
@@ -11,7 +11,7 @@
 - **路径映射**：把云端路径映射到媒体服务库内路径，便于强提取播放地址。
 - **预加载 / 极速播放**：可选的播放预热与极速直连。
 - **音乐下载子服务**：Go 编写的 `music-dl`，提供独立 Web UI（默认 `8080`），并由主服务在 `/music` 路由下统一接入。
-- **微信公众号点歌**：内置 `wechatpy` 集成，可作为公众号后端处理点歌指令。
+- **企业微信点歌**：内置 `wechatpy.enterprise` 集成，把企业微信自建应用接入回调地址 `/wechat/music`，在企业微信里发送歌曲名即可触发搜索与下载。
 - **Web 管理面板**：基于 FastAPI + 单页 Vue 的管理后台，统一管理上述所有配置。
 
 ## 架构概览
@@ -73,7 +73,7 @@ python main.py
 | `embys[]` | Emby 站点列表，每条对应一个独立网关端口 |
 | `navidromes[]` / `tingreaders[]` / `feinius[]` | 同上，分别对应 Navidrome / 有声书阅读器 / 飞牛影视 |
 | `admin_username` / `admin_password` | 管理后台登录账号 |
-| `wecom_music` | 企业微信 / 公众号点歌相关凭据 |
+| `wecom_music` | 企业微信自建应用点歌相关凭据（corp_id / agent_id / secret / token / encoding_aes_key） |
 
 > **请务必在公网部署前修改默认密码**。所有敏感字段（Cookie、token、secret 等）都通过 Web 面板填写，不会随仓库一起分发。
 
